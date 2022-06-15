@@ -1,5 +1,4 @@
 .env
 
-# pihole
-/etc-dnsmasq.d
-/etc-pihole
+# container data
+/data
