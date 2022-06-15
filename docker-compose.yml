@@ -90,3 +90,24 @@ services:
       - 7359:7359/udp # Allows clients to discover Jellyfin on the local network
       - 1900:1900/udp # Service discovery used by DNLA and clients
     restart: unless-stopped
+  
+  # Transmission with flood UI - torrent
+  transmission:
+    image: lscr.io/linuxserver/transmission:latest
+    container_name: transmission
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ="${TIMEZONE}"
+      - TRANSMISSION_WEB_HOME=/flood-for-transmission #optional
+      - USER=${COMMON_USERNAME} #optional
+      - PASS=${COMMON_PASSWORD} #optional
+      - PEERPORT=51413
+    volumes:
+      - ./data/transmision/config:/config
+      - /media/vineet/movieNAS/Downloads:/downloads
+    ports:
+      - ${TRANSMISSION_PORT}:9091
+      - 51413:51413
+      - 51413:51413/udp
+    restart: unless-stopped
