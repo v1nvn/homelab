@@ -56,3 +56,17 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+  
+  # Glances - System monitor
+  # https://glances.readthedocs.io/en/latest/docker.html
+  glances:
+    image: nicolargo/glances:latest
+    container_name: glances
+    ports:
+      - "${GLANCES_PORT}:61208"
+    pid: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - "GLANCES_OPT=-w"
+    restart: always
