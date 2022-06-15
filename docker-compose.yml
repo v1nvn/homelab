@@ -111,3 +111,18 @@ services:
       - 51413:51413
       - 51413:51413/udp
     restart: unless-stopped
+  
+  # Radarr - auto torrent download
+  # https://hub.docker.com/r/linuxserver/radarr
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ="${TIMEZONE}"
+    volumes:
+      - ./data/radarr/config:/config
+    ports:
+      - ${RADARR_PORT}:7878
+    restart: unless-stopped
