@@ -70,3 +70,23 @@ services:
     environment:
       - "GLANCES_OPT=-w"
     restart: always
+  
+  # Jellyfin - Media server 
+  # https://hub.docker.com/r/linuxserver/jellyfin
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ="${TIMEZONE}"
+      - JELLYFIN_PublishedServerUrl=192.168.0.172
+    volumes:
+      - ./data/jellyfin/config:/config
+      - /media/vineet/movieNAS/Movies:/data/movies
+      - "/media/vineet/tvNAS/TV Shows:/data/tv"
+    ports:
+      - ${JELLYFIN_PORT}:8096 # Http webUI
+      - 7359:7359/udp # Allows clients to discover Jellyfin on the local network
+      - 1900:1900/udp # Service discovery used by DNLA and clients
+    restart: unless-stopped
