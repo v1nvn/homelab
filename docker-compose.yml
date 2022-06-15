@@ -126,3 +126,27 @@ services:
     ports:
       - ${RADARR_PORT}:7878
     restart: unless-stopped
+
+  # Prowlarr - torrent indexer
+  # https://hub.docker.com/r/linuxserver/prowlarr
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:develop
+    container_name: prowlarr
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ="${TIMEZONE}"
+    volumes:
+      - ./data/prowlarr/config:/config
+    ports:
+      - ${PROWLARR_PORT}:9696
+    restart: unless-stopped
+
+
+    # TODO(services):
+    # 1. OctoPrint - 3d printer 
+    #      https://github.com/OctoPrint/octoprint-docker/blob/master/docker-compose.yml
+
+    # TODO(misc):
+    # 1. Traefic reverse proxy
+    #      https://doc.traefik.io/traefik/getting-started/quick-start/
