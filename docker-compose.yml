@@ -19,3 +19,17 @@ services:
       - './data/pihole/etc-pihole:/etc/pihole'
       - './data/pihole/etc-dnsmasq.d:/etc/dnsmasq.d'    
     restart: unless-stopped
+
+  # Portainer
+  # https://docs.portainer.io/start/install/server/docker/linux
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce:latest
+    ports:
+      - "${PORTAINER_PORT}:9000"
+    environment:
+      TZ: "${TIMEZONE}"
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock'
+      - './data/portainer/data:/data'    
+    restart: unless-stopped
