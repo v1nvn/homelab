@@ -142,6 +142,18 @@ services:
       - ${PROWLARR_PORT}:9696
     restart: unless-stopped
 
+  # FlareSolverr - proxy server to bypass Cloudflare and DDoS-GUARD protection
+  # https://github.com/FlareSolverr/FlareSolverr
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    environment:
+      - LOG_LEVEL=info
+      - TZ="${TIMEZONE}"
+    ports:
+      - ${FLARESOLVERR_PORT}:8191
+    restart: unless-stopped
+
 
     # TODO(services):
     # 1. OctoPrint - 3d printer 
