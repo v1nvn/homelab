@@ -172,6 +172,18 @@ services:
       - ${FLARESOLVERR_PORT}:8191
     restart: unless-stopped
 
+  # FlareSolverr - proxy server to bypass Cloudflare and DDoS-GUARD protection
+  # https://github.com/FlareSolverr/FlareSolverr
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    environment:
+      - TZ=${TIMEZONE}
+      - WATCHTOWER_CLEANUP=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
 
     # TODO(services):
     # 1. OctoPrint - 3d printer 
