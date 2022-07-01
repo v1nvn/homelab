@@ -7,17 +7,15 @@ services:
     container_name: pihole
     image: pihole/pihole:latest
     ports:
-      - "53:53/tcp"
-      - "53:53/udp"
-      # - "67:67/udp" # Only required if you are using Pi-hole as your DHCP server
-      - "${PIHOLE_PORT}:80/tcp"
+      - 53:53/tcp
+      - 53:53/udp
+      - ${PIHOLE_PORT}:80/tcp
     environment:
-      TZ: "${TIMEZONE}"
-      WEBPASSWORD: "${COMMON_PASSWORD}"
-    # Volumes store your data between container upgrades
+      - TZ=${TIMEZONE}
+      - WEBPASSWORD=${COMMON_PASSWORD}
     volumes:
-      - './data/pihole/etc-pihole:/etc/pihole'
-      - './data/pihole/etc-dnsmasq.d:/etc/dnsmasq.d'    
+      - ./data/pihole/etc-pihole:/etc/pihole
+      - ./data/pihole/etc-dnsmasq.d:/etc/dnsmasq.d
     restart: unless-stopped
 
   # Portainer
@@ -26,12 +24,12 @@ services:
     container_name: portainer
     image: portainer/portainer-ce:latest
     ports:
-      - "${PORTAINER_PORT}:9000"
+      - ${PORTAINER_PORT}:9000
     environment:
-      TZ: "${TIMEZONE}"
+      - TZ=${TIMEZONE}
     volumes:
-      - '/var/run/docker.sock:/var/run/docker.sock'
-      - './data/portainer/data:/data'    
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data/portainer/data:/data
     restart: unless-stopped
 
   # Dashy - service organizer
@@ -63,12 +61,12 @@ services:
     image: nicolargo/glances:latest
     container_name: glances
     ports:
-      - "${GLANCES_PORT}:61208"
+      - ${GLANCES_PORT}:61208
     pid: host
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      - "GLANCES_OPT=-w"
+      - GLANCES_OPT=-w
     restart: always
   
   # Jellyfin - Media server 
@@ -79,12 +77,12 @@ services:
     environment:
       - PUID=${UID}
       - PGID=${GID}
-      - TZ="${TIMEZONE}"
+      - TZ=${TIMEZONE}
       - JELLYFIN_PublishedServerUrl=192.168.0.172
     volumes:
       - ./data/jellyfin/config:/config
-      - /media/vineet/movieNAS/Movies:/data/movies
-      - "/media/vineet/tvNAS/TV Shows:/data/tv"
+      - ${MOVIES_DIR}:/data/movies
+      - ${TV_SHOWS_DIR}:/data/tv
     ports:
       - ${JELLYFIN_PORT}:8096 # Http webUI
       - 7359:7359/udp # Allows clients to discover Jellyfin on the local network
@@ -98,14 +96,14 @@ services:
     environment:
       - PUID=${UID}
       - PGID=${GID}
-      - TZ="${TIMEZONE}"
+      - TZ=${TIMEZONE}
       - TRANSMISSION_WEB_HOME=/flood-for-transmission #optional
       - USER=${COMMON_USERNAME} #optional
       - PASS=${COMMON_PASSWORD} #optional
       - PEERPORT=51413
     volumes:
       - ./data/transmision/config:/config
-      - /media/vineet/movieNAS/Downloads:/downloads
+      - ${DOWNLOADS_DIR}:/downloads
     ports:
       - ${TRANSMISSION_PORT}:9091
       - 51413:51413
@@ -120,9 +118,11 @@ services:
     environment:
       - PUID=${UID}
       - PGID=${GID}
-      - TZ="${TIMEZONE}"
+      - TZ=${TIMEZONE}
     volumes:
       - ./data/radarr/config:/config
+      - ${MOVIES_DIR}:/data/movies
+      - ${DOWNLOADS_DIR}:/downloads
     ports:
       - ${RADARR_PORT}:7878
     restart: unless-stopped
@@ -135,7 +135,7 @@ services:
     environment:
       - PUID=${UID}
       - PGID=${GID}
-      - TZ="${TIMEZONE}"
+      - TZ=${TIMEZONE}
     volumes:
       - ./data/prowlarr/config:/config
     ports:
@@ -149,7 +149,7 @@ services:
     container_name: flaresolverr
     environment:
       - LOG_LEVEL=info
-      - TZ="${TIMEZONE}"
+      - TZ=${TIMEZONE}
     ports:
       - ${FLARESOLVERR_PORT}:8191
     restart: unless-stopped
