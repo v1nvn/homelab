@@ -111,7 +111,7 @@ services:
       - 51413:51413/udp
     restart: unless-stopped
   
-  # Radarr - auto torrent download
+  # Radarr - auto torrent download for movies
   # https://hub.docker.com/r/linuxserver/radarr
   radarr:
     image: lscr.io/linuxserver/radarr:latest
@@ -126,6 +126,23 @@ services:
       - ${DOWNLOADS_DIR}:/downloads
     ports:
       - ${RADARR_PORT}:7878
+    restart: unless-stopped
+
+  # Sonarr - auto torrent download for tv shows
+  # https://hub.docker.com/r/linuxserver/sonarr
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TIMEZONE}
+    volumes:
+      - ./data/sonarr/config:/config
+      - ${TV_SHOWS_DIR}:/data/tv
+      - ${DOWNLOADS_DIR}:/downloads
+    ports:
+      - ${SONARR_PORT}:8989
     restart: unless-stopped
 
   # Prowlarr - torrent indexer
