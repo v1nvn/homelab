@@ -39,6 +39,7 @@ services:
     container_name: dashy
     volumes:
       - ./data/dashy/conf.yml:/app/public/conf.yml
+      - ./pi.ico:/app/public/favicon.ico
     ports:
       - ${DASHY_PORT}:80
     environment:
