@@ -1,7 +1,7 @@
 {
-    "files.exclude": {
-        "data/": true,
-    },
+    // "files.exclude": {
+    //     "data/": true,
+    // },
     "files.watcherExclude": {
         "data/": true
     }
