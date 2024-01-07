@@ -29,8 +29,7 @@ services:
       - ./data/traefik/acme.json:/acme.json # stores ACME (HTTPS) certificates
     labels:
       - traefik.enable=true
-      - traefik.http.middlewares.admin.basicauth.users=${USERNAME}:${PASSWORD_HASH}
-      - traefik.http.routers.traefik.middlewares=admin
+      - traefik.http.routers.traefik.middlewares=authentik@docker
       - traefik.http.routers.traefik.entrypoints=websecure
       - traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN_NAME}`)
       - traefik.http.routers.traefik.service=api@internal
@@ -54,8 +53,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
     labels:
       - traefik.enable=true
-      - traefik.http.middlewares.admin.basicauth.users=${USERNAME}:${PASSWORD_HASH}
-      - traefik.http.routers.whoami.middlewares=admin
+      - traefik.http.routers.whoami.middlewares=authentik@docker
       - traefik.http.routers.whoami.entrypoints=websecure
       - traefik.http.routers.whoami.rule=Host(`whoami.${DOMAIN_NAME}`)
       - traefik.http.routers.whoami.tls.certresolver=certo
@@ -193,8 +191,7 @@ services:
       - GLANCES_OPT=-w
     labels:
       - traefik.enable=true
-      - traefik.http.middlewares.admin.basicauth.users=${USERNAME}:${PASSWORD_HASH}
-      - traefik.http.routers.glances.middlewares=admin
+      - traefik.http.routers.glances.middlewares=authentik@docker
       - traefik.http.routers.glances.entrypoints=websecure
       - traefik.http.routers.glances.rule=Host(`glances.${DOMAIN_NAME}`)
       - traefik.http.routers.glances.tls.certresolver=certo
@@ -272,9 +269,98 @@ services:
       - traefik.http.routers.speedtracker.service=speedtracker
       - traefik.http.services.speedtracker.loadBalancer.server.port=80
 
+  authentik-db:
+    image: docker.io/library/postgres:12-alpine
+    container_name: authentik-db
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_DB=authentik
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - ./data/authentik/db:/var/lib/postgresql/data
+
+  authentik-redis:
+    image: docker.io/library/redis:alpine
+    container_name: authentik-redis
+    command: --save 60 1 --loglevel warning
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 3s
+    volumes:
+      - ./data/authentik/redis:/data
+
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2023.10.5
+    container_name: authentik-server
+    restart: unless-stopped
+    command: server
+    environment:
+      - AUTHENTIK_REDIS__HOST=authentik-redis
+      - AUTHENTIK_POSTGRESQL__HOST=authentik-db
+      - AUTHENTIK_POSTGRESQL__USER=${DB_USERNAME}
+      - AUTHENTIK_POSTGRESQL__NAME=authentik
+      - AUTHENTIK_POSTGRESQL__PASSWORD=${DB_PASSWORD}
+      - AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
+    volumes:
+      - ./data/authentik/media:/media
+      - ./data/authentik/custom-templates:/templates
+    depends_on:
+      - authentik-db
+      - authentik-redis
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.authentik.entrypoints=websecure
+      - traefik.http.routers.authentik.rule=Host(`authentik.${DOMAIN_NAME}`)
+      - traefik.http.routers.authentik.tls.certresolver=certo
+      - traefik.http.routers.authentik.service=authentik
+      
+      - traefik.http.routers.authentik-proxy.entrypoints=websecure
+      - traefik.http.routers.authentik-proxy.rule=PathPrefix(`/outpost.goauthentik.io/`)
+      - traefik.http.routers.authentik-proxy.tls.certresolver=certo
+      - traefik.http.routers.authentik-proxy.service=authentik
+      
+      - traefik.http.services.authentik.loadBalancer.server.port=9000
+
+      - traefik.http.middlewares.authentik.forwardauth.address=http://authentik-server:9000/outpost.goauthentik.io/auth/traefik
+      - traefik.http.middlewares.authentik.forwardauth.trustForwardHeader=true
+      - traefik.http.middlewares.authentik.forwardauth.authResponseHeaders=X-authentik-username,X-authentik-groups,X-authentik-email,X-authentik-name,X-authentik-uid,X-authentik-jwt,X-authentik-meta-jwks,X-authentik-meta-outpost,X-authentik-meta-provider,X-authentik-meta-app,X-authentik-meta-version
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2023.10.5
+    container_name: authentik-worker
+    restart: unless-stopped
+    command: worker
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - AUTHENTIK_REDIS__HOST=authentik-redis
+      - AUTHENTIK_POSTGRESQL__HOST=authentik-db
+      - AUTHENTIK_POSTGRESQL__USER=${DB_USERNAME}
+      - AUTHENTIK_POSTGRESQL__NAME=authentik
+      - AUTHENTIK_POSTGRESQL__PASSWORD=${DB_PASSWORD}
+      - AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data/authentik/media:/media
+      - ./data/authentik/custom-templates:/templates
+      - ./data/authentik/certs:/certs
+    depends_on:
+      - authentik-db
+      - authentik-redis
 
 # TODO:
-# 2. https://goauthentik.io/docs/installation/docker-compose - https://goauthentik.io/docs/providers/proxy/server_traefik
 # 3. Media (Servarrrrrrr + Jellyfin)
 # 5. Grocy
 # 6. librespeed
