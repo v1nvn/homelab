@@ -148,11 +148,11 @@ services:
       - ENABLE_MJPG_STREAMER=true
       - MJPG_STREAMER_INPUT="-r 1920x1080 -f 30"
     devices:
-     - /dev/ttyUSB0:/dev/ttyUSB0
-     - /dev/video0:/dev/video0
+      - /dev/ttyUSB0:/dev/ttyUSB0
+      - /dev/video0:/dev/video0
     volumes:
-     - ./data/octoprint:/octoprint
-     - /etc/localtime:/etc/localtime:ro
+      - ./data/octoprint:/octoprint
+      - /etc/localtime:/etc/localtime:ro
     labels:
       - traefik.enable=true
       - traefik.http.routers.octoprint.entrypoints=websecure
@@ -232,6 +232,18 @@ services:
       - traefik.http.routers.code.service=code
       - traefik.http.services.code.loadBalancer.server.port=8443
 
+  speedtracker-db:
+    image: postgres:15
+    container_name: speedtracker-db
+    restart: always
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_DB=speedtest_tracker
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - ./data/speedtracker/db:/var/lib/postgresql/data
+
   speedtracker:
     image: ghcr.io/alexjustesen/speedtest-tracker:latest
     container_name: speedtracker
@@ -259,18 +271,6 @@ services:
       - traefik.http.routers.speedtracker.tls.certresolver=certo
       - traefik.http.routers.speedtracker.service=speedtracker
       - traefik.http.services.speedtracker.loadBalancer.server.port=80
-  
-  speedtracker-db:
-      image: postgres:15
-      container_name: speedtracker-db
-      restart: always
-      environment:
-          - PGDATA=/var/lib/postgresql/data/pgdata
-          - POSTGRES_DB=speedtest_tracker
-          - POSTGRES_USER=${DB_USERNAME}
-          - POSTGRES_PASSWORD=${DB_PASSWORD}
-      volumes:
-          - ./data/speedtracker/db:/var/lib/postgresql/data
 
 
 # TODO:
