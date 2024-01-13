@@ -401,6 +401,24 @@ services:
     depends_on:
       - loki
 
+  home:
+    image: "ghcr.io/home-assistant/home-assistant:stable"
+    container_name: home
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    volumes:
+      - ./data/home:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.home.entrypoints=websecure
+      - traefik.http.routers.home.rule=Host(`home.${DOMAIN_NAME}`)
+      - traefik.http.routers.home.tls.certresolver=certo
+      - traefik.http.routers.home.service=home
+      - traefik.http.services.home.loadBalancer.server.port=8123
+
 # TODO:
 # 3. Media (Servarrrrrrr + Jellyfin)
 # 5. Grocy
