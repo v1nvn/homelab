@@ -138,26 +138,26 @@ services:
       - traefik.http.routers.emulator.service=emulator
       - traefik.http.services.emulator.loadBalancer.server.port=80
 
-  octoprint:
-    image: octoprint/octoprint:latest
-    container_name: octoprint
-    restart: unless-stopped
-    environment:
-      - ENABLE_MJPG_STREAMER=true
-      - MJPG_STREAMER_INPUT="-r 1920x1080 -f 30"
-    devices:
-      - /dev/ttyUSB0:/dev/ttyUSB0
-      - /dev/video0:/dev/video0
-    volumes:
-      - ./data/octoprint:/octoprint
-      - /etc/localtime:/etc/localtime:ro
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.octoprint.entrypoints=websecure
-      - traefik.http.routers.octoprint.rule=Host(`octoprint.${DOMAIN_NAME}`)
-      - traefik.http.routers.octoprint.tls.certresolver=certo
-      - traefik.http.routers.octoprint.service=octoprint
-      - traefik.http.services.octoprint.loadBalancer.server.port=80
+  # octoprint:
+  #   image: octoprint/octoprint:latest
+  #   container_name: octoprint
+  #   restart: unless-stopped
+  #   environment:
+  #     - ENABLE_MJPG_STREAMER=true
+  #     - MJPG_STREAMER_INPUT="-r 1920x1080 -f 30"
+  #   devices:
+  #     - /dev/ttyUSB0:/dev/ttyUSB0
+  #     - /dev/video0:/dev/video0
+  #   volumes:
+  #     - ./data/octoprint:/octoprint
+  #     - /etc/localtime:/etc/localtime:ro
+  #   labels:
+  #     - traefik.enable=true
+  #     - traefik.http.routers.octoprint.entrypoints=websecure
+  #     - traefik.http.routers.octoprint.rule=Host(`octoprint.${DOMAIN_NAME}`)
+  #     - traefik.http.routers.octoprint.tls.certresolver=certo
+  #     - traefik.http.routers.octoprint.service=octoprint
+  #     - traefik.http.services.octoprint.loadBalancer.server.port=80
 
   portainer:
     image: portainer/portainer-ce:latest
@@ -359,6 +359,41 @@ services:
     depends_on:
       - authentik-db
       - authentik-redis
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    user: '1000'
+    volumes:
+      - ./data/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ./data/grafana/storage:/var/lib/grafana
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.grafana.entrypoints=websecure
+      - traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN_NAME}`)
+      - traefik.http.routers.grafana.tls.certresolver=certo
+      - traefik.http.routers.grafana.service=grafana
+      - traefik.http.services.grafana.loadBalancer.server.port=3000
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+
+  promtail:
+    image:  grafana/promtail:latest
+    container_name: promtail
+    restart: unless-stopped
+    volumes:
+      - ./data/grafana/promtail.yaml:/etc/promtail/docker-config.yaml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/docker-config.yaml
+    depends_on:
+      - loki
+
 
 # TODO:
 # 3. Media (Servarrrrrrr + Jellyfin)
