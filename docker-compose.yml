@@ -464,6 +464,30 @@ services:
       - traefik.http.routers.transmission.service=transmission
       - traefik.http.services.transmission.loadBalancer.server.port=9091
 
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/dozzle", "healthcheck"]
+      interval: 3s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    environment:
+      - DOZZLE_HOSTNAME=dozzle.v1n.run
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dozzle.middlewares=authentik@docker
+      - traefik.http.routers.dozzle.entrypoints=websecure
+      - traefik.http.routers.dozzle.rule=Host(`dozzle.${DOMAIN_NAME}`)
+      - traefik.http.routers.dozzle.tls.certresolver=certo
+      - traefik.http.routers.dozzle.service=dozzle
+      - traefik.http.services.dozzle.loadBalancer.server.port=8080
+
 # TODO:
 # - Media (Servarrrrrrr + Jellyfin + Transmission)
 # - Hardlinks - https://trash-guides.info/Hardlinks/Hardlinks-and-Instant-Moves/
