@@ -47,6 +47,101 @@ services:
     environment:
       - TUNNEL_TOKEN=${CF_TUNNEL_TOKEN}
 
+  authentik-db:
+    image: docker.io/library/postgres:12-alpine
+    container_name: authentik-db
+    restart: always
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"
+        ]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_DB=authentik
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - ./data/authentik/db:/var/lib/postgresql/data
+
+  authentik-redis:
+    image: docker.io/library/redis:alpine
+    container_name: authentik-redis
+    command: --save 60 1 --loglevel warning
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli ping | grep PONG" ]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 3s
+    volumes:
+      - ./data/authentik/redis:/data
+
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2023.10.5
+    container_name: authentik-server
+    restart: unless-stopped
+    command: server
+    environment:
+      - AUTHENTIK_REDIS__HOST=authentik-redis
+      - AUTHENTIK_POSTGRESQL__HOST=authentik-db
+      - AUTHENTIK_POSTGRESQL__USER=${DB_USERNAME}
+      - AUTHENTIK_POSTGRESQL__NAME=authentik
+      - AUTHENTIK_POSTGRESQL__PASSWORD=${DB_PASSWORD}
+      - AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
+    volumes:
+      - ./data/authentik/media:/media
+      - ./data/authentik/custom-templates:/templates
+    depends_on:
+      - authentik-db
+      - authentik-redis
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.authentik.entrypoints=websecure
+      - traefik.http.routers.authentik.rule=Host(`authentik.${DOMAIN_NAME}`)
+      - traefik.http.routers.authentik.tls.certresolver=certo
+      - traefik.http.routers.authentik.service=authentik
+
+      - traefik.http.routers.authentik-proxy.entrypoints=websecure
+      - traefik.http.routers.authentik-proxy.rule=PathPrefix(`/outpost.goauthentik.io/`)
+      - traefik.http.routers.authentik-proxy.tls.certresolver=certo
+      - traefik.http.routers.authentik-proxy.service=authentik
+
+      - traefik.http.services.authentik.loadBalancer.server.port=9000
+
+      - traefik.http.middlewares.authentik.forwardauth.address=http://authentik-server:9000/outpost.goauthentik.io/auth/traefik
+      - traefik.http.middlewares.authentik.forwardauth.trustForwardHeader=true
+      - traefik.http.middlewares.authentik.forwardauth.authResponseHeaders=X-authentik-username,X-authentik-groups,X-authentik-email,X-authentik-name,X-authentik-uid,X-authentik-jwt,X-authentik-meta-jwks,X-authentik-meta-outpost,X-authentik-meta-provider,X-authentik-meta-app,X-authentik-meta-version
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2023.10.5
+    container_name: authentik-worker
+    restart: unless-stopped
+    command: worker
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - AUTHENTIK_REDIS__HOST=authentik-redis
+      - AUTHENTIK_POSTGRESQL__HOST=authentik-db
+      - AUTHENTIK_POSTGRESQL__USER=${DB_USERNAME}
+      - AUTHENTIK_POSTGRESQL__NAME=authentik
+      - AUTHENTIK_POSTGRESQL__PASSWORD=${DB_PASSWORD}
+      - AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data/authentik/media:/media
+      - ./data/authentik/custom-templates:/templates
+      - ./data/authentik/certs:/certs
+    depends_on:
+      - authentik-db
+      - authentik-redis
+
   whoami:
     image: traefik/whoami:latest
     container_name: whoami
@@ -272,103 +367,8 @@ services:
       - traefik.http.routers.speedtracker.service=speedtracker
       - traefik.http.services.speedtracker.loadBalancer.server.port=80
 
-  authentik-db:
-    image: docker.io/library/postgres:12-alpine
-    container_name: authentik-db
-    restart: always
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"
-        ]
-      start_period: 20s
-      interval: 30s
-      retries: 5
-      timeout: 5s
-    environment:
-      - PGDATA=/var/lib/postgresql/data/pgdata
-      - POSTGRES_DB=authentik
-      - POSTGRES_USER=${DB_USERNAME}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-    volumes:
-      - ./data/authentik/db:/var/lib/postgresql/data
-
-  authentik-redis:
-    image: docker.io/library/redis:alpine
-    container_name: authentik-redis
-    command: --save 60 1 --loglevel warning
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD-SHELL", "redis-cli ping | grep PONG" ]
-      start_period: 20s
-      interval: 30s
-      retries: 5
-      timeout: 3s
-    volumes:
-      - ./data/authentik/redis:/data
-
-  authentik-server:
-    image: ghcr.io/goauthentik/server:2023.10.5
-    container_name: authentik-server
-    restart: unless-stopped
-    command: server
-    environment:
-      - AUTHENTIK_REDIS__HOST=authentik-redis
-      - AUTHENTIK_POSTGRESQL__HOST=authentik-db
-      - AUTHENTIK_POSTGRESQL__USER=${DB_USERNAME}
-      - AUTHENTIK_POSTGRESQL__NAME=authentik
-      - AUTHENTIK_POSTGRESQL__PASSWORD=${DB_PASSWORD}
-      - AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
-    volumes:
-      - ./data/authentik/media:/media
-      - ./data/authentik/custom-templates:/templates
-    depends_on:
-      - authentik-db
-      - authentik-redis
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.authentik.entrypoints=websecure
-      - traefik.http.routers.authentik.rule=Host(`authentik.${DOMAIN_NAME}`)
-      - traefik.http.routers.authentik.tls.certresolver=certo
-      - traefik.http.routers.authentik.service=authentik
-
-      - traefik.http.routers.authentik-proxy.entrypoints=websecure
-      - traefik.http.routers.authentik-proxy.rule=PathPrefix(`/outpost.goauthentik.io/`)
-      - traefik.http.routers.authentik-proxy.tls.certresolver=certo
-      - traefik.http.routers.authentik-proxy.service=authentik
-
-      - traefik.http.services.authentik.loadBalancer.server.port=9000
-
-      - traefik.http.middlewares.authentik.forwardauth.address=http://authentik-server:9000/outpost.goauthentik.io/auth/traefik
-      - traefik.http.middlewares.authentik.forwardauth.trustForwardHeader=true
-      - traefik.http.middlewares.authentik.forwardauth.authResponseHeaders=X-authentik-username,X-authentik-groups,X-authentik-email,X-authentik-name,X-authentik-uid,X-authentik-jwt,X-authentik-meta-jwks,X-authentik-meta-outpost,X-authentik-meta-provider,X-authentik-meta-app,X-authentik-meta-version
-
-  authentik-worker:
-    image: ghcr.io/goauthentik/server:2023.10.5
-    container_name: authentik-worker
-    restart: unless-stopped
-    command: worker
-    environment:
-      - PUID=${UID}
-      - PGID=${GID}
-      - AUTHENTIK_REDIS__HOST=authentik-redis
-      - AUTHENTIK_POSTGRESQL__HOST=authentik-db
-      - AUTHENTIK_POSTGRESQL__USER=${DB_USERNAME}
-      - AUTHENTIK_POSTGRESQL__NAME=authentik
-      - AUTHENTIK_POSTGRESQL__PASSWORD=${DB_PASSWORD}
-      - AUTHENTIK_SECRET_KEY=${AUTHENTIK_SECRET_KEY}
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./data/authentik/media:/media
-      - ./data/authentik/custom-templates:/templates
-      - ./data/authentik/certs:/certs
-    depends_on:
-      - authentik-db
-      - authentik-redis
-
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana-oss:latest
     container_name: grafana
     restart: unless-stopped
     user: '1000'
@@ -402,11 +402,11 @@ services:
       - loki
 
   home:
-    image: "ghcr.io/home-assistant/home-assistant:stable"
+    image: ghcr.io/home-assistant/home-assistant:stable
     container_name: home
     restart: unless-stopped
-    privileged: true
-    network_mode: host
+    privileged: true # SPECIFIC TO HOME ASSISSTANT
+    network_mode: host # SPECIFIC TO HOME ASSISSTANT
     volumes:
       - ./data/home:/config
       - /etc/localtime:/etc/localtime:ro
@@ -420,7 +420,15 @@ services:
       - traefik.http.services.home.loadBalancer.server.port=8123
 
 # TODO:
-# 3. Media (Servarrrrrrr + Jellyfin)
-# 5. Grocy
-# 6. librespeed
-# 8. rdesktop
+# - Media (Servarrrrrrr + Jellyfin + Transmission)
+# - Hardlinks - https://trash-guides.info/Hardlinks/Hardlinks-and-Instant-Moves/
+# - samba - https://github.com/ServerContainers/samba/blob/master/docker-compose.yml
+# - ntfy
+# - uptime kuma
+# - gokapi
+# - immich
+# - nextcloud
+# - paperless-ngx
+# - Grocy
+# - librespeed
+# - rdesktop
