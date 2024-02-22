@@ -235,26 +235,26 @@ services:
       - traefik.http.routers.emulator.service=emulator
       - traefik.http.services.emulator.loadBalancer.server.port=80
 
-  # octoprint:
-  #   image: octoprint/octoprint:latest
-  #   container_name: octoprint
-  #   restart: unless-stopped
-  #   environment:
-  #     - ENABLE_MJPG_STREAMER=true
-  #     - MJPG_STREAMER_INPUT="-r 1920x1080 -f 30"
-  #   devices:
-  #     - /dev/ttyUSB0:/dev/ttyUSB0
-  #     - /dev/video0:/dev/video0
-  #   volumes:
-  #     - ./data/octoprint:/octoprint
-  #     - /etc/localtime:/etc/localtime:ro
-  #   labels:
-  #     - traefik.enable=true
-  #     - traefik.http.routers.octoprint.entrypoints=websecure
-  #     - traefik.http.routers.octoprint.rule=Host(`octoprint.${DOMAIN_NAME}`)
-  #     - traefik.http.routers.octoprint.tls.certresolver=certo
-  #     - traefik.http.routers.octoprint.service=octoprint
-  #     - traefik.http.services.octoprint.loadBalancer.server.port=80
+  octoprint:
+    image: octoprint/octoprint:latest
+    container_name: octoprint
+    restart: unless-stopped
+    environment:
+      - ENABLE_MJPG_STREAMER=true
+      - MJPG_STREAMER_INPUT="-r 1920x1080 -f 30"
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+      - /dev/video0:/dev/video0
+    volumes:
+      - ./data/octoprint:/octoprint
+      - /etc/localtime:/etc/localtime:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.octoprint.entrypoints=websecure
+      - traefik.http.routers.octoprint.rule=Host(`octoprint.${DOMAIN_NAME}`)
+      - traefik.http.routers.octoprint.tls.certresolver=certo
+      - traefik.http.routers.octoprint.service=octoprint
+      - traefik.http.services.octoprint.loadBalancer.server.port=80
 
   portainer:
     image: portainer/portainer-ce:latest
