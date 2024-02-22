@@ -440,6 +440,30 @@ services:
       - traefik.http.routers.jellyfin.service=jellyfin
       - traefik.http.services.jellyfin.loadBalancer.server.port=8096
 
+  transmission:
+    image: lscr.io/linuxserver/transmission:latest
+    container_name: transmission
+    restart: unless-stopped
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TIMEZONE}
+      - TRANSMISSION_WEB_HOME=/config/flood-for-transmission
+    volumes:
+      - ./data/transmission:/config
+      - ${DOWNLOADS_DIR}:/downloads
+    ports:
+      - 51413:51413
+      - 51413:51413/udp
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.transmission.middlewares=authentik@docker
+      - traefik.http.routers.transmission.entrypoints=websecure
+      - traefik.http.routers.transmission.rule=Host(`transmission.${DOMAIN_NAME}`)
+      - traefik.http.routers.transmission.tls.certresolver=certo
+      - traefik.http.routers.transmission.service=transmission
+      - traefik.http.services.transmission.loadBalancer.server.port=9091
+
 # TODO:
 # - Media (Servarrrrrrr + Jellyfin + Transmission)
 # - Hardlinks - https://trash-guides.info/Hardlinks/Hardlinks-and-Instant-Moves/
