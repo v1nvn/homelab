@@ -479,7 +479,7 @@ services:
     container_name: dozzle
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "/dozzle", "healthcheck"]
+      test: [ "CMD", "/dozzle", "healthcheck" ]
       interval: 3s
       timeout: 30s
       retries: 5
@@ -498,11 +498,41 @@ services:
       - traefik.http.routers.dozzle.service=dozzle
       - traefik.http.services.dozzle.loadBalancer.server.port=8080
 
+  ntfy:
+    image: binwiederhier/ntfy
+    container_name: ntfy
+    command:
+      - serve
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q --tries=1 http://localhost:80/v1/health -O - | grep -Eo '\"healthy\"\\s*:\\s*true' || exit 1"
+        ]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    environment:
+      - TZ=${TIMEZONE}
+    user: ${UID}:${GID}
+    volumes:
+      - ./data/ntfy/cache:/var/cache/ntfy
+      - ./data/ntfy:/etc/ntfy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.ntfy.middlewares=authentik@docker
+      - traefik.http.routers.ntfy.entrypoints=websecure
+      - traefik.http.routers.ntfy.rule=Host(`ntfy.${DOMAIN_NAME}`)
+      - traefik.http.routers.ntfy.tls.certresolver=certo
+      - traefik.http.routers.ntfy.service=ntfy
+      - traefik.http.services.ntfy.loadBalancer.server.port=80
+
 # TODO:
 # - Media (Servarrrrrrr + Jellyfin + Transmission)
 # - Hardlinks - https://trash-guides.info/Hardlinks/Hardlinks-and-Instant-Moves/
 # - samba - https://github.com/ServerContainers/samba/blob/master/docker-compose.yml
-# - ntfy
 # - uptime kuma
 # - gokapi
 # - immich
