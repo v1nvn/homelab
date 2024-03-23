@@ -37,6 +37,13 @@ services:
       - traefik.http.routers.traefik.service=api@internal
       - traefik.http.routers.traefik.tls.certresolver=certo
 
+      ## == Auth bypass with API Key on local network ==
+      - traefik.http.routers.traefik-api.entrypoints=websecure
+      - traefik.http.routers.traefik-api.priority=99
+      - traefik.http.routers.traefik-api.rule=Host(`traefik.${DOMAIN_NAME}`) && Headers(`X-Api-Key`, `${LOCAL_API_KEY}`)
+      - traefik.http.routers.traefik-api.service=api@internal
+      - traefik.http.routers.traefik-api.tls.certresolver=certo
+
   tunnel:
     image: cloudflare/cloudflared:latest
     container_name: tunnel
@@ -178,7 +185,8 @@ services:
       - traefik.http.services.adguard.loadBalancer.server.port=80
 
   homepage:
-    image: ghcr.io/gethomepage/homepage:latest
+    # image: ghcr.io/gethomepage/homepage:latest
+    build: https://github.com/v1nvn/homepage.git
     container_name: homepage
     restart: unless-stopped
     volumes:
@@ -289,12 +297,20 @@ services:
       - GLANCES_OPT=-w
     labels:
       - traefik.enable=true
+      - traefik.http.services.glances.loadBalancer.server.port=61208
+
       - traefik.http.routers.glances.middlewares=authentik@docker
       - traefik.http.routers.glances.entrypoints=websecure
       - traefik.http.routers.glances.rule=Host(`glances.${DOMAIN_NAME}`)
       - traefik.http.routers.glances.tls.certresolver=certo
       - traefik.http.routers.glances.service=glances
-      - traefik.http.services.glances.loadBalancer.server.port=61208
+
+      ## == Auth bypass with API Key on local network ==
+      - traefik.http.routers.glances-api.entrypoints=websecure
+      - traefik.http.routers.glances-api.priority=99
+      - traefik.http.routers.glances-api.rule=Host(`glances.${DOMAIN_NAME}`) && Headers(`X-Api-Key`, `${LOCAL_API_KEY}`)
+      - traefik.http.routers.glances-api.service=glances
+      - traefik.http.routers.glances-api.tls.certresolver=certo
 
   watchtower:
     image: containrrr/watchtower:latest
@@ -303,8 +319,17 @@ services:
     environment:
       - TZ=${TIMEZONE}
       - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_HTTP_API_METRICS=true
+      - WATCHTOWER_HTTP_API_TOKEN=${LOCAL_API_KEY}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.watchtower.loadBalancer.server.port=8080
+      - traefik.http.routers.watchtower.entrypoints=websecure
+      - traefik.http.routers.watchtower.rule=Host(`watchtower.${DOMAIN_NAME}`)
+      - traefik.http.routers.watchtower.tls.certresolver=certo
+      - traefik.http.routers.watchtower.service=watchtower
 
   code:
     image: lscr.io/linuxserver/code-server:latest
@@ -437,7 +462,7 @@ services:
       - PUID=${UID}
       - PGID=${GID}
       - TZ=${TIMEZONE}
-      - JELLYFIN_PublishedServerUrl=https://jellyfin.v1n.run
+      - JELLYFIN_PublishedServerUrl=https://jellyfin.${DOMAIN_NAME}
     volumes:
       - ./data/jellyfin:/config
       - ${MOVIES_DIR}:/data/movies
@@ -474,6 +499,13 @@ services:
       - traefik.http.routers.transmission.service=transmission
       - traefik.http.services.transmission.loadBalancer.server.port=9091
 
+      ## == Auth bypass with API Key on local network ==
+      - traefik.http.routers.transmission-api.entrypoints=websecure
+      - traefik.http.routers.transmission-api.priority=99
+      - traefik.http.routers.transmission-api.rule=Host(`transmission.${DOMAIN_NAME}`) && Headers(`X-Api-Key`, `${LOCAL_API_KEY}`)
+      - traefik.http.routers.transmission-api.service=transmission
+      - traefik.http.routers.transmission-api.tls.certresolver=certo
+
   dozzle:
     image: amir20/dozzle:latest
     container_name: dozzle
@@ -485,7 +517,7 @@ services:
       retries: 5
       start_period: 30s
     environment:
-      - DOZZLE_HOSTNAME=dozzle.v1n.run
+      - DOZZLE_HOSTNAME=dozzle.${DOMAIN_NAME}
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -541,3 +573,7 @@ services:
 # - Grocy
 # - librespeed
 # - rdesktop
+# - mealie
+# - calibre web
+# - watch your lan
+# - plant it
