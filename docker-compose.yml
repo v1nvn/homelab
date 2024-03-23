@@ -561,12 +561,25 @@ services:
       - traefik.http.routers.ntfy.service=ntfy
       - traefik.http.services.ntfy.loadBalancer.server.port=80
 
+  gokapi:
+    image: docker.io/f0rc3/gokapi:latest
+    container_name: gokapi
+    restart: unless-stopped
+    volumes:
+      - ./data/gokapi:/app/config
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.gokapi.entrypoints=websecure
+      - traefik.http.routers.gokapi.rule=Host(`gokapi.${DOMAIN_NAME}`)
+      - traefik.http.routers.gokapi.tls.certresolver=certo
+      - traefik.http.routers.gokapi.service=gokapi
+      - traefik.http.services.gokapi.loadBalancer.server.port=53842
+
 # TODO:
 # - Media (Servarrrrrrr + Jellyfin + Transmission)
 # - Hardlinks - https://trash-guides.info/Hardlinks/Hardlinks-and-Instant-Moves/
 # - samba - https://github.com/ServerContainers/samba/blob/master/docker-compose.yml
 # - uptime kuma
-# - gokapi
 # - immich
 # - nextcloud
 # - paperless-ngx
