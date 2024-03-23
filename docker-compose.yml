@@ -561,6 +561,31 @@ services:
       - traefik.http.routers.ntfy.service=ntfy
       - traefik.http.services.ntfy.loadBalancer.server.port=80
 
+  changedetection:
+    image: ghcr.io/dgtlmoon/changedetection.io
+    container_name: changedetection
+    restart: unless-stopped
+    depends_on:
+      playwright-chrome:
+        condition: service_started
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - PLAYWRIGHT_DRIVER_URL=ws://playwright-chrome:3000
+      - BASE_URL=https://changedetection.${DOMAIN_NAME}
+      - HIDE_REFERER=true
+      - FETCH_WORKERS=10
+    volumes:
+      - ./data/changedetection:/datastore
+    labels:
+      - traefik.enable=true
+      # - traefik.http.routers.ntfy.middlewares=authentik@docker
+      - traefik.http.routers.changedetection.entrypoints=websecure
+      - traefik.http.routers.changedetection.rule=Host(`changedetection.${DOMAIN_NAME}`)
+      - traefik.http.routers.changedetection.tls.certresolver=certo
+      - traefik.http.routers.changedetection.service=changedetection
+      - traefik.http.services.changedetection.loadBalancer.server.port=5000
+
   gokapi:
     image: docker.io/f0rc3/gokapi:latest
     container_name: gokapi
@@ -574,6 +599,18 @@ services:
       - traefik.http.routers.gokapi.tls.certresolver=certo
       - traefik.http.routers.gokapi.service=gokapi
       - traefik.http.services.gokapi.loadBalancer.server.port=53842
+
+  playwright-chrome:
+    image: dgtlmoon/sockpuppetbrowser:latest
+    container_name: playwright-chrome
+    cap_add:
+      - SYS_ADMIN
+    restart: unless-stopped
+    environment:
+      - SCREEN_WIDTH=1920
+      - SCREEN_HEIGHT=1024
+      - SCREEN_DEPTH=16
+      - MAX_CONCURRENT_CHROME_PROCESSES=10
 
 # TODO:
 # - Media (Servarrrrrrr + Jellyfin + Transmission)
