@@ -199,7 +199,7 @@ services:
       - traefik.http.services.homepage.loadBalancer.server.port=3000
 
   stremio:
-    image: stremio/server:latest
+    image: stremio/server:v4.20.8
     container_name: stremio
     restart: unless-stopped
     volumes:
