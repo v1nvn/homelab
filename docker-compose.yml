@@ -572,6 +572,24 @@ services:
       - SCREEN_DEPTH=16
       - MAX_CONCURRENT_CHROME_PROCESSES=10
 
+  echoer:
+    build:
+      context: echoer
+      dockerfile: Dockerfile
+    container_name: echoer
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.echoer.entrypoints=websecure
+      - traefik.http.routers.echoer.rule=Host(`echoer.${DOMAIN_NAME}`)
+      - traefik.http.routers.echoer.tls.certresolver=certo
+      - traefik.http.routers.echoer.service=echoer
+      - traefik.http.services.echoer.loadBalancer.server.port=8080
+
 # TODO:
 # - Media (Servarrrrrrr + Jellyfin + Transmission)
 # - Hardlinks - https://trash-guides.info/Hardlinks/Hardlinks-and-Instant-Moves/
