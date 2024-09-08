@@ -346,48 +346,18 @@ services:
       - traefik.http.routers.code.service=code
       - traefik.http.services.code.loadBalancer.server.port=8443
 
-  speedtracker-db:
-    image: postgres:15
-    container_name: speedtracker-db
-    restart: always
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"
-        ]
-      start_period: 20s
-      interval: 30s
-      retries: 5
-      timeout: 5s
-    environment:
-      - PGDATA=/var/lib/postgresql/data/pgdata
-      - POSTGRES_DB=speedtest_tracker
-      - POSTGRES_USER=${DB_USERNAME}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-    volumes:
-      - ./data/speedtracker/db:/var/lib/postgresql/data
-
   speedtracker:
-    image: ghcr.io/alexjustesen/speedtest-tracker:latest
+    image: lscr.io/linuxserver/speedtest-tracker:latest
     container_name: speedtracker
     restart: unless-stopped
-    depends_on:
-      - speedtracker-db
     volumes:
-      - ./data/speedtracker/app:/config
-      - ./data/speedtracker/web:/etc/ssl/web
-      - /etc/localtime:/etc/localtime:ro
+      - ./data/speedtracker:/config
     environment:
       - PUID=${UID}
       - PGID=${GID}
-      - APP_DEBUG=true
-      - DB_CONNECTION=pgsql
-      - DB_HOST=speedtracker-db
-      - DB_PORT=5432
-      - DB_DATABASE=speedtest_tracker
-      - DB_USERNAME=${DB_USERNAME}
-      - DB_PASSWORD=${DB_PASSWORD}
+      - TZ=${TIMEZONE}
+      - DB_CONNECTION=sqlite
+      - APP_KEY=base64:5HKIRLBnZBuWnuWlpkIBNYrt3/g89R/sDhzTgNXNEvs=
     labels:
       - traefik.enable=true
       - traefik.http.routers.speedtracker.entrypoints=websecure
