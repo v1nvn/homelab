@@ -53,7 +53,7 @@ services:
       - TUNNEL_TOKEN=${CF_TUNNEL_TOKEN}
 
   authentik-db:
-    image: docker.io/library/postgres:12-alpine
+    image: docker.io/library/postgres:16-alpine
     container_name: authentik-db
     restart: always
     healthcheck:
@@ -85,7 +85,7 @@ services:
       - ./data/authentik/redis:/data
 
   authentik-server:
-    image: ghcr.io/goauthentik/server:2023.10.5
+    image: ghcr.io/goauthentik/server:2024.12.3
     container_name: authentik-server
     restart: unless-stopped
     command: server
@@ -121,7 +121,7 @@ services:
       - traefik.http.middlewares.authentik.forwardauth.authResponseHeaders=X-authentik-username,X-authentik-groups,X-authentik-email,X-authentik-name,X-authentik-uid,X-authentik-jwt,X-authentik-meta-jwks,X-authentik-meta-outpost,X-authentik-meta-provider,X-authentik-meta-app,X-authentik-meta-version
 
   authentik-worker:
-    image: ghcr.io/goauthentik/server:2023.10.5
+    image: ghcr.io/goauthentik/server:2024.12.3
     container_name: authentik-worker
     restart: unless-stopped
     command: worker
@@ -357,7 +357,9 @@ services:
       - PGID=${GID}
       - TZ=${TIMEZONE}
       - DB_CONNECTION=sqlite
+      - APP_NAME="Speed Tracker"
       - APP_KEY=base64:5HKIRLBnZBuWnuWlpkIBNYrt3/g89R/sDhzTgNXNEvs=
+      - SPEEDTEST_SCHEDULE="0 */4 * * *"
     labels:
       - traefik.enable=true
       - traefik.http.routers.speedtracker.entrypoints=websecure
@@ -591,6 +593,10 @@ services:
       - traefik.http.services.echoer.loadBalancer.server.port=8080
 
 # TODO:
+# https://github.com/AppFlowy-IO/AppFlowy-Cloud/blob/main/docker-compose.yml
+# https://github.com/CorentinTh/it-tools?tab=readme-ov-file
+# https://github.com/C4illin/ConvertX
+# BACKUP SOLUTION that backs up to both nas hdds and maybe google drive/dropbox?
 # - Media (Servarrrrrrr + Jellyfin + Transmission)
 # - Hardlinks - https://trash-guides.info/Hardlinks/Hardlinks-and-Instant-Moves/
 # - samba - https://github.com/ServerContainers/samba/blob/master/docker-compose.yml
