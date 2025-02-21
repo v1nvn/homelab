@@ -624,6 +624,27 @@ services:
       - traefik.http.routers.dev.tls.certresolver=certo
       - traefik.http.routers.dev.service=dev
 
+  calibre:
+    image: lscr.io/linuxserver/calibre-web:latest
+    container_name: calibre
+    restart: unless-stopped
+    volumes:
+      - ./data/calibre/data:/config
+      - ./data/calibre/library:/books
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TIMEZONE}
+      - DOCKER_MODS=linuxserver/mods:universal-calibre #optional
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.calibre.entrypoints=websecure
+      - traefik.http.routers.calibre.rule=Host(`calibre.${DOMAIN_NAME}`)
+      - traefik.http.routers.calibre.tls.certresolver=certo
+      - traefik.http.routers.calibre.service=calibre
+      - traefik.http.services.calibre.loadBalancer.server.port=8083
+
+
 # TODO:
 # https://github.com/AppFlowy-IO/AppFlowy-Cloud/blob/main/docker-compose.yml
 # https://github.com/C4illin/ConvertX
@@ -639,6 +660,5 @@ services:
 # - librespeed
 # - rdesktop
 # - mealie
-# - calibre web
 # - watch your lan
 # - plant it
