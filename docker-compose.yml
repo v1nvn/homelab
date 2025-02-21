@@ -592,6 +592,22 @@ services:
       - traefik.http.routers.echoer.service=echoer
       - traefik.http.services.echoer.loadBalancer.server.port=8080
 
+  pdf:
+    image: stirlingtools/stirling-pdf:latest
+    container_name: pdf
+    restart: always
+    environment:
+      - TZ=${TIMEZONE}
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.pdf.loadBalancer.server.port=8080
+
+      - traefik.http.routers.pdf.middlewares=authentik@docker
+      - traefik.http.routers.pdf.entrypoints=websecure
+      - traefik.http.routers.pdf.rule=Host(`pdf.${DOMAIN_NAME}`)
+      - traefik.http.routers.pdf.tls.certresolver=certo
+      - traefik.http.routers.pdf.service=pdf
+
 # TODO:
 # https://github.com/AppFlowy-IO/AppFlowy-Cloud/blob/main/docker-compose.yml
 # https://github.com/CorentinTh/it-tools?tab=readme-ov-file
