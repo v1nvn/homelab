@@ -661,6 +661,26 @@ services:
       - traefik.http.routers.grocy.service=grocy
       - traefik.http.services.grocy.loadBalancer.server.port=80
 
+  mealie:
+    image: ghcr.io/mealie-recipes/mealie:latest
+    container_name: mealie
+    restart: unless-stopped
+    volumes:
+      - ./data/mealie/data:/app/data
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TIMEZONE}
+      - ALLOW_SIGNUP=false
+      - BASE_URL=https://mealie.${DOMAIN_NAME}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mealie.entrypoints=websecure
+      - traefik.http.routers.mealie.rule=Host(`mealie.${DOMAIN_NAME}`)
+      - traefik.http.routers.mealie.tls.certresolver=certo
+      - traefik.http.routers.mealie.service=mealie
+      - traefik.http.services.mealie.loadBalancer.server.port=9000
+
 
 # TODO:
 # https://docs.linuxserver.io/images/docker-projectsend/
@@ -674,8 +694,6 @@ services:
 # - immich
 # - nextcloud
 # - paperless-ngx
-# - Grocy
-# - rdesktop
-# - mealie
+# - rustdesk
 # - watch your lan
 # - plant it
