@@ -643,8 +643,27 @@ services:
       - traefik.http.routers.kavita.service=kavita
       - traefik.http.services.kavita.loadBalancer.server.port=5000
 
+  grocy:
+    image: lscr.io/linuxserver/grocy:latest
+    container_name: grocy
+    restart: unless-stopped
+    volumes:
+      - ./data/grocy/config:/config
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TIMEZONE}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.grocy.entrypoints=websecure
+      - traefik.http.routers.grocy.rule=Host(`grocy.${DOMAIN_NAME}`)
+      - traefik.http.routers.grocy.tls.certresolver=certo
+      - traefik.http.routers.grocy.service=grocy
+      - traefik.http.services.grocy.loadBalancer.server.port=80
+
 
 # TODO:
+# https://docs.linuxserver.io/images/docker-projectsend/
 # https://github.com/AppFlowy-IO/AppFlowy-Cloud/blob/main/docker-compose.yml
 # https://github.com/C4illin/ConvertX
 # BACKUP SOLUTION that backs up to both nas hdds and maybe google drive/dropbox?
