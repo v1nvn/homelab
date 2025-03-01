@@ -541,7 +541,7 @@ services:
       - ./data/changedetection:/datastore
     labels:
       - traefik.enable=true
-      # - traefik.http.routers.ntfy.middlewares=authentik@docker
+      - traefik.http.routers.changedetection.middlewares=authentik@docker
       - traefik.http.routers.changedetection.entrypoints=websecure
       - traefik.http.routers.changedetection.rule=Host(`changedetection.${DOMAIN_NAME}`)
       - traefik.http.routers.changedetection.tls.certresolver=certo
@@ -624,32 +624,31 @@ services:
       - traefik.http.routers.dev.tls.certresolver=certo
       - traefik.http.routers.dev.service=dev
 
-  calibre:
-    image: lscr.io/linuxserver/calibre-web:latest
-    container_name: calibre
+  kavita:
+    image: lscr.io/linuxserver/kavita:latest
+    container_name: kavita
     restart: unless-stopped
     volumes:
-      - ./data/calibre/data:/config
-      - ./data/calibre/library:/books
+      - ./data/kavita/config:/config
+      - ./data/kavita/data:/data
     environment:
       - PUID=${UID}
       - PGID=${GID}
       - TZ=${TIMEZONE}
-      - DOCKER_MODS=linuxserver/mods:universal-calibre #optional
     labels:
       - traefik.enable=true
-      - traefik.http.routers.calibre.entrypoints=websecure
-      - traefik.http.routers.calibre.rule=Host(`calibre.${DOMAIN_NAME}`)
-      - traefik.http.routers.calibre.tls.certresolver=certo
-      - traefik.http.routers.calibre.service=calibre
-      - traefik.http.services.calibre.loadBalancer.server.port=8083
+      - traefik.http.routers.kavita.entrypoints=websecure
+      - traefik.http.routers.kavita.rule=Host(`kavita.${DOMAIN_NAME}`)
+      - traefik.http.routers.kavita.tls.certresolver=certo
+      - traefik.http.routers.kavita.service=kavita
+      - traefik.http.services.kavita.loadBalancer.server.port=5000
 
 
 # TODO:
 # https://github.com/AppFlowy-IO/AppFlowy-Cloud/blob/main/docker-compose.yml
 # https://github.com/C4illin/ConvertX
 # BACKUP SOLUTION that backs up to both nas hdds and maybe google drive/dropbox?
-# - Media (Servarrrrrrr + Jellyfin + Transmission)
+# - Servarrrrrrr
 # - Hardlinks - https://trash-guides.info/Hardlinks/Hardlinks-and-Instant-Moves/
 # - samba - https://github.com/ServerContainers/samba/blob/master/docker-compose.yml
 # - uptime kuma
@@ -657,7 +656,6 @@ services:
 # - nextcloud
 # - paperless-ngx
 # - Grocy
-# - librespeed
 # - rdesktop
 # - mealie
 # - watch your lan
