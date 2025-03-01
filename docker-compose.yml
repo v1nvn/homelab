@@ -681,6 +681,23 @@ services:
       - traefik.http.routers.mealie.service=mealie
       - traefik.http.services.mealie.loadBalancer.server.port=9000
 
+  uptime:
+    image: louislam/uptime-kuma:latest
+    container_name: uptime
+    restart: unless-stopped
+    volumes:
+      - ./data/uptime/data:/app/data
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TIMEZONE}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.uptime.entrypoints=websecure
+      - traefik.http.routers.uptime.rule=Host(`uptime.${DOMAIN_NAME}`)
+      - traefik.http.routers.uptime.tls.certresolver=certo
+      - traefik.http.routers.uptime.service=uptime
+      - traefik.http.services.uptime.loadBalancer.server.port=3001
 
 # TODO:
 # https://docs.linuxserver.io/images/docker-projectsend/
@@ -690,9 +707,7 @@ services:
 # - Servarrrrrrr
 # - Hardlinks - https://trash-guides.info/Hardlinks/Hardlinks-and-Instant-Moves/
 # - samba - https://github.com/ServerContainers/samba/blob/master/docker-compose.yml
-# - uptime kuma
 # - immich
-# - nextcloud
 # - paperless-ngx
 # - rustdesk
 # - watch your lan
