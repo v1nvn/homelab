@@ -699,8 +699,47 @@ services:
       - traefik.http.routers.uptime.service=uptime
       - traefik.http.services.uptime.loadBalancer.server.port=3001
 
+  send:
+    image: lscr.io/linuxserver/projectsend:latest
+    container_name: send
+    restart: unless-stopped
+    depends_on:
+      - send-db
+    volumes:
+      - ./data/send/config:/config
+      - ./data/send/data:/data
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TIMEZONE}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.send.entrypoints=websecure
+      - traefik.http.routers.send.rule=Host(`send.${DOMAIN_NAME}`)
+      - traefik.http.routers.send.tls.certresolver=certo
+      - traefik.http.routers.send.service=send
+      - traefik.http.services.send.loadBalancer.server.port=80
+
+  send-db:
+    image: mysql:8.0
+    container_name: send-db
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin --user=$${MYSQL_USER} --password=$${MYSQL_PASSWORD} --host=localhost ping"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    environment:
+      - MYSQL_DATABASE=send
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      - MYSQL_USER=${DB_USERNAME}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - ./data/send/db:/var/lib/mysql
+  
+
 # TODO:
-# https://docs.linuxserver.io/images/docker-projectsend/
 # https://github.com/AppFlowy-IO/AppFlowy-Cloud/blob/main/docker-compose.yml
 # https://github.com/C4illin/ConvertX
 # BACKUP SOLUTION that backs up to both nas hdds and maybe google drive/dropbox?
