@@ -548,20 +548,6 @@ services:
       - traefik.http.routers.changedetection.service=changedetection
       - traefik.http.services.changedetection.loadBalancer.server.port=5000
 
-  gokapi:
-    image: docker.io/f0rc3/gokapi:latest
-    container_name: gokapi
-    restart: unless-stopped
-    volumes:
-      - ./data/gokapi:/app/config
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.gokapi.entrypoints=websecure
-      - traefik.http.routers.gokapi.rule=Host(`gokapi.${DOMAIN_NAME}`)
-      - traefik.http.routers.gokapi.tls.certresolver=certo
-      - traefik.http.routers.gokapi.service=gokapi
-      - traefik.http.services.gokapi.loadBalancer.server.port=53842
-
   playwright-chrome:
     image: dgtlmoon/sockpuppetbrowser:latest
     container_name: playwright-chrome
@@ -737,12 +723,38 @@ services:
       - MYSQL_PASSWORD=${DB_PASSWORD}
     volumes:
       - ./data/send/db:/var/lib/mysql
+
+  backrest:
+    image: garethgeorge/backrest:latest
+    container_name: backrest
+    restart: unless-stopped
+    environment:
+      - TZ=${TIMEZONE}
+      - BACKREST_DATA=/data
+      - BACKREST_CONFIG=/config/config.json
+      - XDG_CACHE_HOME=/cache
+      - TMPDIR=/tmp
+    volumes:
+      - ./data/backrest/data:/data
+      - ./data/backrest/config:/config
+      - ./data/backrest/cache:/cache
+      - ./data/backrest/tmp:/tmp
+      # - /path/to/backup/data:/userdata  # Mount local paths to backup
+      # - /path/to/local/repos:/repos     # Mount local repos (optional for remote storage)
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.backrest.entrypoints=websecure
+      - traefik.http.routers.backrest.rule=Host(`backrest.${DOMAIN_NAME}`)
+      - traefik.http.routers.backrest.tls.certresolver=certo
+      - traefik.http.routers.backrest.service=backrest
+      - traefik.http.services.backrest.loadBalancer.server.port=9898
+
   
 
 # TODO:
 # https://github.com/AppFlowy-IO/AppFlowy-Cloud/blob/main/docker-compose.yml
 # https://github.com/C4illin/ConvertX
-# BACKUP SOLUTION that backs up to both nas hdds and maybe google drive/dropbox?
+
 # - Servarrrrrrr
 # - Hardlinks - https://trash-guides.info/Hardlinks/Hardlinks-and-Instant-Moves/
 # - samba - https://github.com/ServerContainers/samba/blob/master/docker-compose.yml
