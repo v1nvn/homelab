@@ -749,9 +749,63 @@ services:
       - traefik.http.routers.backrest.service=backrest
       - traefik.http.services.backrest.loadBalancer.server.port=9898
 
+  plantit:
+    image: msdeluise/plant-it-server:latest
+    container_name: plantit
+    restart: unless-stopped
+    depends_on:
+      - plantit-db
+    volumes:
+      - ./data/plantit/upload-dir:/upload-dir
+    environment:
+      - MYSQL_HOST=plantit-db
+      - MYSQL_PORT=3306
+      - MYSQL_USERNAME=${DB_USERNAME}
+      - MYSQL_PSW=${DB_PASSWORD}
+      - MYSQL_DATABASE=plantit
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      - CACHE_TYPE=none
+      - FLORACODEX_KEY=${FLORACODEX_KEY}
+    labels:
+      - traefik.enable=true
+      
+      - traefik.http.routers.plantit.entrypoints=websecure
+      - traefik.http.routers.plantit.rule=Host(`plantit.${DOMAIN_NAME}`)
+      - traefik.http.routers.plantit.tls.certresolver=certo
+      - traefik.http.routers.plantit.service=plantit
+      - traefik.http.services.plantit.loadBalancer.server.port=3000
+
+      - traefik.http.routers.plantit-api.entrypoints=websecure
+      - traefik.http.routers.plantit-api.rule=Host(`plantit-api.${DOMAIN_NAME}`)
+      - traefik.http.routers.plantit-api.tls.certresolver=certo
+      - traefik.http.routers.plantit-api.service=plantit-api
+      - traefik.http.services.plantit-api.loadBalancer.server.port=8080
+
+  plantit-db:
+    image: mysql:8.0
+    container_name: plantit-db
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin --user=$${MYSQL_USER} --password=$${MYSQL_PASSWORD} --host=localhost ping"]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    environment:
+      - MYSQL_DATABASE=plantit
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      - MYSQL_USER=${DB_USERNAME}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - ./data/plantit/db:/var/lib/mysql
+
   
+# Repository for backups 
+# - cloudflare r2 gb/month pricing. < $2/month
+# - tencent cloud gb/month pricing. < $2/month
 
 # TODO:
+# https://github.com/toeverything/AFFiNE -> .docker/selfhost/compose.yml
 # https://github.com/AppFlowy-IO/AppFlowy-Cloud/blob/main/docker-compose.yml
 # https://github.com/C4illin/ConvertX
 
