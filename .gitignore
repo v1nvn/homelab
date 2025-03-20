@@ -2,3 +2,6 @@
 
 # container data
 /data
+
+# container cache
+/cache

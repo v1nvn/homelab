@@ -82,7 +82,7 @@ services:
       retries: 5
       timeout: 3s
     volumes:
-      - ./data/authentik/redis:/data
+      - ./cache/authentik/redis:/data
 
   authentik-server:
     image: ghcr.io/goauthentik/server:2024.12.3
@@ -203,7 +203,8 @@ services:
     container_name: stremio
     restart: unless-stopped
     volumes:
-      - ./data/stremio:/app/settings
+      - ./data/stremio/server-settings.json:/app/settings/server-settings.json
+      - ./cache/stremio:/app/settings/stremio-cache
       - /etc/localtime:/etc/localtime:ro
     environment:
       - NO_CORS=1
@@ -512,7 +513,7 @@ services:
       - TZ=${TIMEZONE}
     user: ${UID}:${GID}
     volumes:
-      - ./data/ntfy/cache:/var/cache/ntfy
+      - ./cache/ntfy:/var/cache/ntfy
       - ./data/ntfy:/etc/ntfy
     labels:
       - traefik.enable=true
@@ -737,7 +738,7 @@ services:
     volumes:
       - ./data/backrest/data:/data
       - ./data/backrest/config:/config
-      - ./data/backrest/cache:/cache
+      - ./cache/backrest:/cache
       - ./data/backrest/tmp:/tmp
       # - /path/to/backup/data:/userdata  # Mount local paths to backup
       # - /path/to/local/repos:/repos     # Mount local repos (optional for remote storage)
@@ -816,4 +817,3 @@ services:
 # - paperless-ngx
 # - rustdesk
 # - watch your lan
-# - plant it
