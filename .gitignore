@@ -5,3 +5,6 @@
 
 # container cache
 /cache
+
+# container config
+/config
