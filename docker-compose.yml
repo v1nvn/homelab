@@ -166,8 +166,10 @@ services:
       - 53:53/tcp
       - 53:53/udp
       # - 3000:3000 # Required for first setup
+    tmpfs:
+      - /opt/adguardhome/work
     volumes:
-      - ./data/adguard/work:/opt/adguardhome/work
+      # - ./data/adguard/work:/opt/adguardhome/work
       - ./data/adguard/conf:/opt/adguardhome/conf
       - /etc/localtime:/etc/localtime:ro
     labels:
