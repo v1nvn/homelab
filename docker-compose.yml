@@ -423,26 +423,26 @@ services:
       - traefik.http.routers.home.service=home
       - traefik.http.services.home.loadBalancer.server.port=8123
 
-  jellyfin:
-    image: lscr.io/linuxserver/jellyfin:latest
-    container_name: jellyfin
-    restart: unless-stopped
-    environment:
-      - PUID=${UID}
-      - PGID=${GID}
-      - TZ=${TIMEZONE}
-      - JELLYFIN_PublishedServerUrl=https://jellyfin.${DOMAIN_NAME}
-    volumes:
-      - ./data/jellyfin:/config
-      - ${MOVIES_DIR}:/data/movies
-      - ${TV_SHOWS_DIR}:/data/tv
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.jellyfin.entrypoints=websecure
-      - traefik.http.routers.jellyfin.rule=Host(`jellyfin.${DOMAIN_NAME}`)
-      - traefik.http.routers.jellyfin.tls.certresolver=certo
-      - traefik.http.routers.jellyfin.service=jellyfin
-      - traefik.http.services.jellyfin.loadBalancer.server.port=8096
+  # jellyfin:
+  #   image: lscr.io/linuxserver/jellyfin:latest
+  #   container_name: jellyfin
+  #   restart: unless-stopped
+  #   environment:
+  #     - PUID=${UID}
+  #     - PGID=${GID}
+  #     - TZ=${TIMEZONE}
+  #     - JELLYFIN_PublishedServerUrl=https://jellyfin.${DOMAIN_NAME}
+  #   volumes:
+  #     - ./data/jellyfin:/config
+  #     - ${MOVIES_DIR}:/data/movies
+  #     - ${TV_SHOWS_DIR}:/data/tv
+  #   labels:
+  #     - traefik.enable=true
+  #     - traefik.http.routers.jellyfin.entrypoints=websecure
+  #     - traefik.http.routers.jellyfin.rule=Host(`jellyfin.${DOMAIN_NAME}`)
+  #     - traefik.http.routers.jellyfin.tls.certresolver=certo
+  #     - traefik.http.routers.jellyfin.service=jellyfin
+  #     - traefik.http.services.jellyfin.loadBalancer.server.port=8096
 
   transmission:
     image: lscr.io/linuxserver/transmission:latest
