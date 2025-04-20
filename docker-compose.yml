@@ -740,7 +740,8 @@ services:
       - ./data/backrest/config:/config
       - ./cache/backrest:/cache
       - ./data/backrest/tmp:/tmp
-      # - /path/to/backup/data:/userdata  # Mount local paths to backup
+      # Mount local paths to backup
+      - ./config:/homelab-backup/config  
       # - /path/to/local/repos:/repos     # Mount local repos (optional for remote storage)
     labels:
       - traefik.enable=true
