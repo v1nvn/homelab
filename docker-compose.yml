@@ -842,6 +842,52 @@ services:
       - traefik.http.routers.vaultwarden.tls.certresolver=certo
       - traefik.http.routers.vaultwarden.service=vaultwarden
       - traefik.http.services.vaultwarden.loadBalancer.server.port=80
+
+  atuin-db:
+    image: docker.io/library/postgres:17-alpine
+    container_name: atuin-db
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}" ]
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_DB=atuin
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - ./data/atuin/db:/var/lib/postgresql/data
+
+  atuin:
+    image: ghcr.io/atuinsh/atuin:latest
+    command: server start
+    container_name: atuin
+    restart: unless-stopped
+    depends_on:
+      - atuin-db
+    volumes:
+      - ./config/atuin:/config
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
+      - TZ=${TIMEZONE}
+      - ATUIN_HOST=0.0.0.0
+      # - ATUIN_OPEN_REGISTRATION=true
+      - ATUIN_DB_URI=postgresql://${DB_USERNAME}:${DB_PASSWORD}@atuin-db:5432/atuin
+      - RUST_LOG=info,atuin_server=debug
+    labels:
+      - traefik.enable=true
+      
+      - traefik.http.routers.atuin.entrypoints=websecure
+      - traefik.http.routers.atuin.rule=Host(`atuin.${DOMAIN_NAME}`)
+      - traefik.http.routers.atuin.tls.certresolver=certo
+      - traefik.http.routers.atuin.service=atuin
+      - traefik.http.services.atuin.loadBalancer.server.port=8888
+
+  
   
 # TODO: apps
 # https://github.com/AppFlowy-IO/AppFlowy-Cloud/blob/main/docker-compose.yml
