@@ -1,3 +1,11 @@
+networks:
+  homelab_bridge:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.0.0.0/24
+
 services:
   traefik:
     image: traefik:latest
@@ -7,16 +15,16 @@ services:
       - --entrypoints.web.address=:80
       - --entrypoints.web.http.redirections.entryPoint.to=websecure
       - --entrypoints.web.http.redirections.entryPoint.scheme=https
-      - --entryPoints.web.forwardedHeaders.trustedIPs=192.168.1.0/24,172.18.0.0/16
-
+      - --entryPoints.web.forwardedHeaders.trustedIPs=192.168.1.0/24,10.0.0.0/24
       
       - --entrypoints.websecure.address=:443
       - --entrypoints.websecure.http.tls.domains[0].main=${DOMAIN_NAME}
       - --entrypoints.websecure.http.tls.domains[0].sans=*.${DOMAIN_NAME}
-      - --entryPoints.websecure.forwardedHeaders.trustedIPs=192.168.1.0/24,172.18.0.0/16
+      - --entryPoints.websecure.forwardedHeaders.trustedIPs=192.168.1.0/24,10.0.0.0/24
       
       - --providers.docker=true
-      - --providers.docker.exposedByDefault=false # require containers to define `traefik.enable=true` to be exposed
+      - --providers.docker.exposedByDefault=false
+      # - --providers.docker.network=homelab_bridge # Optionally, tell Traefik to specifically monitor this network
       
       - --api
       
@@ -33,9 +41,6 @@ services:
       - --log.maxage=30 # days
       - --log.maxbackups=60
       - --log.compress=true
-    ports:
-      - 80:80
-      - 443:443
     environment:
       - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
     volumes:
@@ -43,6 +48,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./data/traefik/acme.json:/acme.json
       - ./logs/traefik:/logs
+    networks:
+      - homelab_bridge
+    ports:
+      - 80:80
+      - 443:443
     extra_hosts:
       - host.docker.internal:172.17.0.1 # Fix for discovering containers running with network_mode: host
     labels:
@@ -53,7 +63,6 @@ services:
       - traefik.http.routers.traefik.service=api@internal
       - traefik.http.routers.traefik.tls.certresolver=certo
 
-      ## == Auth bypass with API Key on local network ==
       - traefik.http.routers.traefik-api.entrypoints=websecure
       - traefik.http.routers.traefik-api.priority=99
       - traefik.http.routers.traefik-api.rule=Host(`traefik.${DOMAIN_NAME}`) && Header(`X-Api-Key`, `${LOCAL_API_KEY}`)
@@ -64,11 +73,13 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: tunnel
     restart: unless-stopped
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
     command: tunnel run
     environment:
       - TUNNEL_TOKEN=${CF_TUNNEL_TOKEN}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - homelab_bridge
 
   authentik-db:
     image: docker.io/library/postgres:16-alpine
@@ -87,6 +98,8 @@ services:
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
       - ./data/authentik/db:/var/lib/postgresql/data
+    networks:
+      - homelab_bridge
 
   authentik-redis:
     image: docker.io/library/redis:alpine
@@ -101,6 +114,8 @@ services:
       timeout: 3s
     volumes:
       - ./cache/authentik/redis:/data
+    networks:
+      - homelab_bridge
 
   authentik-server:
     image: ghcr.io/goauthentik/server:2025.2
@@ -117,6 +132,8 @@ services:
     volumes:
       - ./data/authentik/media:/media
       - ./data/authentik/custom-templates:/templates
+    networks:
+      - homelab_bridge
     depends_on:
       - authentik-db
       - authentik-redis
@@ -157,6 +174,8 @@ services:
       - ./data/authentik/media:/media
       - ./data/authentik/custom-templates:/templates
       - ./data/authentik/certs:/certs
+    networks:
+      - homelab_bridge
     depends_on:
       - authentik-db
       - authentik-redis
@@ -167,6 +186,8 @@ services:
     restart: unless-stopped
     volumes:
       - /etc/localtime:/etc/localtime:ro
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.routers.whoami.middlewares=authentik@docker
@@ -180,16 +201,17 @@ services:
     image: adguard/adguardhome:latest
     container_name: adguard
     restart: unless-stopped
-    ports:
-      - 53:53/tcp
-      - 53:53/udp
-      # - 3000:3000 # Required for first setup
     tmpfs:
       - /opt/adguardhome/work
     volumes:
-      # - ./data/adguard/work:/opt/adguardhome/work
       - ./data/adguard/conf:/opt/adguardhome/conf
       - /etc/localtime:/etc/localtime:ro
+    networks:
+      - homelab_bridge
+    ports:
+      - 53:53/tcp
+      - 53:53/udp
+      # - 3000:3000
     labels:
       - traefik.enable=true
       - traefik.http.routers.adguard.entrypoints=websecure
@@ -199,17 +221,18 @@ services:
       - traefik.http.services.adguard.loadBalancer.server.port=80
 
   homepage:
-    # image: ghcr.io/gethomepage/homepage:latest
     build: https://github.com/v1nvn/homepage.git
     container_name: homepage
     restart: unless-stopped
+    environment:
+      - PUID=${UID}
+      - PGID=${GID}
     volumes:
       - ./data/homepage/config:/app/config
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /etc/localtime:/etc/localtime:ro
-    environment:
-      - PUID=${UID}
-      - PGID=${GID}
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.routers.homepage.entrypoints=websecure
@@ -222,13 +245,15 @@ services:
     image: stremio/server:v4.20.8
     container_name: stremio
     restart: unless-stopped
+    environment:
+      - NO_CORS=1
+      - APP_PATH=/app/settings
     volumes:
       - ./data/stremio/server-settings.json:/app/settings/server-settings.json
       - ./cache/stremio:/app/settings/stremio-cache
       - /etc/localtime:/etc/localtime:ro
-    environment:
-      - NO_CORS=1
-      - APP_PATH=/app/settings
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.routers.stremio.entrypoints=websecure
@@ -241,15 +266,17 @@ services:
     image: lscr.io/linuxserver/emulatorjs:latest
     container_name: emulator
     restart: unless-stopped
-    volumes:
-      - ./data/emulator/config:/config
-      - ./data/emulator/data:/data
-    ports:
-      - 3000:3000
     environment:
       - PUID=${UID}
       - PGID=${GID}
       - TZ=${TIMEZONE}
+    volumes:
+      - ./data/emulator/config:/config
+      - ./data/emulator/data:/data
+    networks:
+      - homelab_bridge
+    ports:
+      - 3000:3000
     labels:
       - traefik.enable=true
       - traefik.http.routers.emulator.entrypoints=websecure
@@ -271,6 +298,8 @@ services:
     volumes:
       - ./data/octoprint:/octoprint
       - /etc/localtime:/etc/localtime:ro
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.routers.octoprint.entrypoints=websecure
@@ -283,11 +312,13 @@ services:
     image: portainer/portainer-ce:latest
     container_name: portainer
     restart: unless-stopped
+    environment:
+      - TZ=${TIMEZONE}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./data/portainer/data:/data
-    environment:
-      - TZ=${TIMEZONE}
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.routers.portainer.entrypoints=websecure
@@ -302,14 +333,15 @@ services:
     restart: always
     pid: host
     privileged: true
-    network_mode: host
+    network_mode: host # This service uses host networking
+    environment:
+      - TZ=${TIMEZONE}
+      - GLANCES_OPT=-w
     volumes:
       - ./data/glances/glances.conf:/glances/conf/glances.conf
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /etc/os-release:/etc/os-release:ro
-    environment:
-      - TZ=${TIMEZONE}
-      - GLANCES_OPT=-w
+    # No 'networks:' section here as it's using network_mode: host
     labels:
       - traefik.enable=true
       - traefik.http.services.glances.loadBalancer.server.port=61208
@@ -320,7 +352,6 @@ services:
       - traefik.http.routers.glances.tls.certresolver=certo
       - traefik.http.routers.glances.service=glances
 
-      ## == Auth bypass with API Key on local network ==
       - traefik.http.routers.glances-api.entrypoints=websecure
       - traefik.http.routers.glances-api.priority=99
       - traefik.http.routers.glances-api.rule=Host(`glances.${DOMAIN_NAME}`) && Header(`X-Api-Key`, `${LOCAL_API_KEY}`)
@@ -338,6 +369,8 @@ services:
       - WATCHTOWER_HTTP_API_TOKEN=${LOCAL_API_KEY}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.services.watchtower.loadBalancer.server.port=8080
@@ -350,8 +383,6 @@ services:
     image: lscr.io/linuxserver/code-server:latest
     container_name: code
     restart: unless-stopped
-    volumes:
-      - ./data/code/config:/config
     environment:
       - PUID=${UID}
       - PGID=${GID}
@@ -359,6 +390,10 @@ services:
       - PASSWORD=${PASSWORD}
       - SUDO_PASSWORD=${PASSWORD}
       - DEFAULT_WORKSPACE=/config/workspace
+    volumes:
+      - ./data/code/config:/config
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.routers.code.entrypoints=websecure
@@ -371,8 +406,6 @@ services:
     image: lscr.io/linuxserver/speedtest-tracker:latest
     container_name: speedtracker
     restart: unless-stopped
-    volumes:
-      - ./data/speedtracker:/config
     environment:
       - PUID=${UID}
       - PGID=${GID}
@@ -381,6 +414,10 @@ services:
       - APP_NAME="Speed Tracker"
       - APP_KEY=base64:5HKIRLBnZBuWnuWlpkIBNYrt3/g89R/sDhzTgNXNEvs=
       - SPEEDTEST_SCHEDULE="0 */4 * * *"
+    volumes:
+      - ./data/speedtracker:/config
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.routers.speedtracker.entrypoints=websecure
@@ -394,9 +431,13 @@ services:
   #   container_name: grafana
   #   restart: unless-stopped
   #   user: '1000'
+  #   environment:
+  #     # ...
   #   volumes:
   #     - ./data/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
   #     - ./data/grafana/storage:/var/lib/grafana
+  #   networks:
+  #     - homelab_bridge
   #   labels:
   #     - traefik.enable=true
   #     - traefik.http.routers.grafana.entrypoints=websecure
@@ -410,16 +451,21 @@ services:
   #   container_name: loki
   #   restart: unless-stopped
   #   command: -config.file=/etc/loki/local-config.yaml
+  #   networks:
+  #     - homelab_bridge
+  #   # No volumes or ports
 
   # promtail:
   #   image: grafana/promtail:latest
   #   container_name: promtail
   #   restart: unless-stopped
+  #   command: -config.file=/etc/promtail/docker-config.yaml
   #   volumes:
   #     - ./data/grafana/promtail.yaml:/etc/promtail/docker-config.yaml
   #     - /var/lib/docker/containers:/var/lib/docker/containers:ro
   #     - /var/run/docker.sock:/var/run/docker.sock
-  #   command: -config.file=/etc/promtail/docker-config.yaml
+  #   networks:
+  #     - homelab_bridge
   #   depends_on:
   #     - loki
 
@@ -427,12 +473,13 @@ services:
     image: ghcr.io/home-assistant/home-assistant:stable
     container_name: home
     restart: unless-stopped
-    privileged: true # SPECIFIC TO HOME ASSISSTANT
-    network_mode: host # SPECIFIC TO HOME ASSISSTANT
+    privileged: true
+    network_mode: host # This service uses host networking
     volumes:
       - ./data/home:/config
       - /etc/localtime:/etc/localtime:ro
       - /run/dbus:/run/dbus:ro
+    # No 'networks:' section here as it's using network_mode: host
     labels:
       - traefik.enable=true
       - traefik.http.routers.home.entrypoints=websecure
@@ -454,6 +501,8 @@ services:
   #     - ./data/jellyfin:/config
   #     - ${MOVIES_DIR}:/data/movies
   #     - ${TV_SHOWS_DIR}:/data/tv
+  #   networks:
+  #     - homelab_bridge
   #   labels:
   #     - traefik.enable=true
   #     - traefik.http.routers.jellyfin.entrypoints=websecure
@@ -474,6 +523,8 @@ services:
     volumes:
       - ./data/transmission:/config
       - ${DOWNLOADS_DIR}:/downloads
+    networks:
+      - homelab_bridge
     ports:
       - 51413:51413
       - 51413:51413/udp
@@ -486,7 +537,6 @@ services:
       - traefik.http.routers.transmission.service=transmission
       - traefik.http.services.transmission.loadBalancer.server.port=9091
 
-      ## == Auth bypass with API Key on local network ==
       - traefik.http.routers.transmission-api.entrypoints=websecure
       - traefik.http.routers.transmission-api.priority=99
       - traefik.http.routers.transmission-api.rule=Host(`transmission.${DOMAIN_NAME}`) && Header(`X-Api-Key`, `${LOCAL_API_KEY}`)
@@ -508,6 +558,8 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.routers.dozzle.middlewares=authentik@docker
@@ -535,6 +587,8 @@ services:
     volumes:
       - ./cache/ntfy:/var/cache/ntfy
       - ./data/ntfy:/etc/ntfy
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.routers.ntfy.middlewares=authentik@docker
@@ -560,6 +614,8 @@ services:
       - FETCH_WORKERS=10
     volumes:
       - ./data/changedetection:/datastore
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.routers.changedetection.middlewares=authentik@docker
@@ -580,6 +636,8 @@ services:
       - SCREEN_HEIGHT=1024
       - SCREEN_DEPTH=16
       - MAX_CONCURRENT_CHROME_PROCESSES=10
+    networks:
+      - homelab_bridge
 
   echoer:
     build:
@@ -591,6 +649,8 @@ services:
       - PYTHONUNBUFFERED=1
     volumes:
       - /etc/localtime:/etc/localtime:ro
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.routers.echoer.entrypoints=websecure
@@ -605,6 +665,8 @@ services:
     restart: always
     environment:
       - TZ=${TIMEZONE}
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.services.pdf.loadBalancer.server.port=8080
@@ -621,6 +683,8 @@ services:
     restart: always
     environment:
       - TZ=${TIMEZONE}
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.services.dev.loadBalancer.server.port=80
@@ -635,13 +699,15 @@ services:
     image: lscr.io/linuxserver/kavita:latest
     container_name: kavita
     restart: unless-stopped
-    volumes:
-      - ./data/kavita/config:/config
-      - ./data/kavita/data:/data
     environment:
       - PUID=${UID}
       - PGID=${GID}
       - TZ=${TIMEZONE}
+    volumes:
+      - ./data/kavita/config:/config
+      - ./data/kavita/data:/data
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.routers.kavita.entrypoints=websecure
@@ -654,12 +720,14 @@ services:
     image: lscr.io/linuxserver/grocy:latest
     container_name: grocy
     restart: unless-stopped
-    volumes:
-      - ./data/grocy/config:/config
     environment:
       - PUID=${UID}
       - PGID=${GID}
       - TZ=${TIMEZONE}
+    volumes:
+      - ./data/grocy/config:/config
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.routers.grocy.entrypoints=websecure
@@ -672,14 +740,16 @@ services:
     image: ghcr.io/mealie-recipes/mealie:latest
     container_name: mealie
     restart: unless-stopped
-    volumes:
-      - ./data/mealie/data:/app/data
     environment:
       - PUID=${UID}
       - PGID=${GID}
       - TZ=${TIMEZONE}
       - ALLOW_SIGNUP=false
       - BASE_URL=https://mealie.${DOMAIN_NAME}
+    volumes:
+      - ./data/mealie/data:/app/data
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.routers.mealie.entrypoints=websecure
@@ -692,12 +762,14 @@ services:
     image: louislam/uptime-kuma:latest
     container_name: uptime
     restart: unless-stopped
-    volumes:
-      - ./data/uptime/data:/app/data
     environment:
       - PUID=${UID}
       - PGID=${GID}
       - TZ=${TIMEZONE}
+    volumes:
+      - ./data/uptime/data:/app/data
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.routers.uptime.entrypoints=websecure
@@ -712,13 +784,15 @@ services:
     restart: unless-stopped
     depends_on:
       - send-db
-    volumes:
-      - ./data/send/config:/config
-      - ./data/send/data:/data
     environment:
       - PUID=${UID}
       - PGID=${GID}
       - TZ=${TIMEZONE}
+    volumes:
+      - ./data/send/config:/config
+      - ./data/send/data:/data
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.routers.send.entrypoints=websecure
@@ -744,6 +818,8 @@ services:
       - MYSQL_PASSWORD=${DB_PASSWORD}
     volumes:
       - ./data/send/db:/var/lib/mysql
+    networks:
+      - homelab_bridge
 
   backrest:
     image: garethgeorge/backrest:latest
@@ -761,7 +837,9 @@ services:
       - ./cache/backrest:/cache
       - ./data/backrest/tmp:/tmp
       - ./config:/homelab-backup/config  # Mount local paths to backup
-      # - /path/to/local/repos:/repos     # Mount local repos (optional for remote storage)
+      # - /path/to/local/repos:/repos # Mount local repos (optional for remote storage)
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.routers.backrest.entrypoints=websecure
@@ -776,8 +854,6 @@ services:
     restart: unless-stopped
     depends_on:
       - plantit-db
-    volumes:
-      - ./data/plantit/upload-dir:/upload-dir
     environment:
       - MYSQL_HOST=plantit-db
       - MYSQL_PORT=3306
@@ -787,6 +863,10 @@ services:
       - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
       - CACHE_TYPE=none
       - FLORACODEX_KEY=${FLORACODEX_KEY}
+    volumes:
+      - ./data/plantit/upload-dir:/upload-dir
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       
@@ -819,7 +899,8 @@ services:
       - MYSQL_PASSWORD=${DB_PASSWORD}
     volumes:
       - ./data/plantit/db:/var/lib/mysql
-
+    networks:
+      - homelab_bridge
 
   vaultwarden-db:
     image: docker.io/library/postgres:17-alpine
@@ -838,6 +919,8 @@ services:
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
       - ./data/vaultwarden/db:/var/lib/postgresql/data
+    networks:
+      - homelab_bridge
 
   vaultwarden:
     image: vaultwarden/server:latest
@@ -845,13 +928,15 @@ services:
     restart: unless-stopped
     depends_on:
       - vaultwarden-db
-    volumes:
-      - ./data/vaultwarden/data:/data
     environment:
       - DATABASE_URL=postgresql://${DB_USERNAME}:${DB_PASSWORD}@vaultwarden-db:5432/vaultwarden
       - DOMAIN=https://vaultwarden.${DOMAIN_NAME}
       - ADMIN_TOKEN=${PASSWORD}
       - SIGNUPS_ALLOWED=false
+    volumes:
+      - ./data/vaultwarden/data:/data
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       
@@ -878,6 +963,8 @@ services:
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
       - ./data/atuin/db:/var/lib/postgresql/data
+    networks:
+      - homelab_bridge
 
   atuin:
     image: ghcr.io/atuinsh/atuin:latest
@@ -886,8 +973,6 @@ services:
     restart: unless-stopped
     depends_on:
       - atuin-db
-    volumes:
-      - ./config/atuin:/config
     environment:
       - PUID=${UID}
       - PGID=${GID}
@@ -896,6 +981,10 @@ services:
       # - ATUIN_OPEN_REGISTRATION=true
       - ATUIN_DB_URI=postgresql://${DB_USERNAME}:${DB_PASSWORD}@atuin-db:5432/atuin
       - RUST_LOG=info,atuin_server=debug
+    volumes:
+      - ./config/atuin:/config
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       
@@ -909,10 +998,6 @@ services:
     image: allinurl/goaccess:latest
     container_name: goaccess
     restart: unless-stopped
-    volumes:
-      - ./logs/traefik:/srv/traefik/logs:ro
-      - ./logs/goaccesss:/srv/logs
-      - ./data/goaccess/report:/srv/report
     command:
       - /srv/traefik/logs/access.log
       - --date-format=%Y-%m-%d
@@ -924,6 +1009,12 @@ services:
       - --port=443
       - --ws-url=wss://goaccess.${DOMAIN_NAME}
       - --invalid-requests=/srv/logs/invalid.log
+    volumes:
+      - ./logs/traefik:/srv/traefik/logs:ro
+      - ./logs/goaccesss:/srv/logs
+      - ./data/goaccess/report:/srv/report
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.routers.goaccess.entrypoints=websecure
@@ -939,6 +1030,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./data/goaccess/report:/usr/share/nginx/html:ro
+    networks:
+      - homelab_bridge
     labels:
       - traefik.enable=true
       - traefik.http.routers.report.entrypoints=websecure
