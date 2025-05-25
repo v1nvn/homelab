@@ -8,3 +8,6 @@
 
 # container config
 /config
+
+# logs directory
+/logs

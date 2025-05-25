@@ -7,15 +7,32 @@ services:
       - --entrypoints.web.address=:80
       - --entrypoints.web.http.redirections.entryPoint.to=websecure
       - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      - --entryPoints.web.forwardedHeaders.trustedIPs=192.168.1.0/24,172.18.0.0/16
+
+      
       - --entrypoints.websecure.address=:443
       - --entrypoints.websecure.http.tls.domains[0].main=${DOMAIN_NAME}
       - --entrypoints.websecure.http.tls.domains[0].sans=*.${DOMAIN_NAME}
+      - --entryPoints.websecure.forwardedHeaders.trustedIPs=192.168.1.0/24,172.18.0.0/16
+      
       - --providers.docker=true
       - --providers.docker.exposedByDefault=false # require containers to define `traefik.enable=true` to be exposed
+      
       - --api
+      
       - --certificatesresolvers.certo.acme.email=${EMAIL}
       - --certificatesresolvers.certo.acme.storage=/acme.json
       - --certificatesresolvers.certo.acme.dnschallenge.provider=cloudflare
+      
+      - --accesslog.filepath=/logs/access.log
+      - --accesslog.format=json
+      - --accesslog.bufferingSize=100
+      - --accesslog.fields.headers.defaultMode=drop
+      - --accesslog.fields.headers.names.User-Agent=keep
+      - --log.maxsize=10 # megabytes
+      - --log.maxage=30 # days
+      - --log.maxbackups=60
+      - --log.compress=true
     ports:
       - 80:80
       - 443:443
@@ -25,6 +42,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./data/traefik/acme.json:/acme.json
+      - ./logs/traefik:/logs
     extra_hosts:
       - host.docker.internal:172.17.0.1 # Fix for discovering containers running with network_mode: host
     labels:
@@ -887,7 +905,48 @@ services:
       - traefik.http.routers.atuin.service=atuin
       - traefik.http.services.atuin.loadBalancer.server.port=8888
 
-  
+  goaccess:
+    image: allinurl/goaccess:latest
+    container_name: goaccess
+    restart: unless-stopped
+    volumes:
+      - ./logs/traefik:/srv/traefik/logs:ro
+      - ./logs/goaccesss:/srv/logs
+      - ./data/goaccess/report:/srv/report
+    command:
+      - /srv/traefik/logs/access.log
+      - --date-format=%Y-%m-%d
+      - --time-format=%H:%M:%S
+      - --log-format='{"ClientAddr":"%^","ClientHost":"%h","ClientPort":"%^","ClientUsername":"%e","DownstreamContentSize":%b,"DownstreamStatus":%s,"Duration":%n,"OriginContentSize":%^,"OriginDuration":%^,"OriginStatus":%^,"Overhead":%^,"RequestAddr":"%^","RequestContentSize":%^,"RequestCount":%^,"RequestHost":"%v","RequestMethod":"%m","RequestPath":"%U","RequestPort":"%^","RequestProtocol":"%H","RequestScheme":"%^","RetryAttempts":%^,"RouterName":"%^","ServiceAddr":"%^","ServiceName":"%^","ServiceURL":"%^","StartLocal":"%^","StartUTC":"%^","TLSCipher":"%k","TLSVersion":"%K","entryPointName":"%^","level":"%^","msg":"%^","request_User-Agent":"%u","time":"%dT%t+%^"}'
+      - --tz=${TIMEZONE}
+      - --real-time-html
+      - --output=/srv/report/index.html
+      - --port=443
+      - --ws-url=wss://goaccess.${DOMAIN_NAME}
+      - --invalid-requests=/srv/logs/invalid.log
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.goaccess.entrypoints=websecure
+      - traefik.http.routers.goaccess.rule=Host(`goaccess.${DOMAIN_NAME}`)
+      - traefik.http.routers.goaccess.tls.certresolver=certo
+      - traefik.http.routers.goaccess.service=goaccess
+      - traefik.http.services.goaccess.loadbalancer.server.port=443
+      - traefik.http.routers.goaccess.middlewares=authentik@docker
+
+  goaccess-report:
+    image: nginx:alpine
+    container_name: goaccess-report
+    restart: unless-stopped
+    volumes:
+      - ./data/goaccess/report:/usr/share/nginx/html:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.report.entrypoints=websecure
+      - traefik.http.routers.report.rule=Host(`report.${DOMAIN_NAME}`)
+      - traefik.http.routers.report.tls.certresolver=certo
+      - traefik.http.routers.report.service=report
+      - traefik.http.services.report.loadbalancer.server.port=80
+      - traefik.http.routers.report.middlewares=authentik@docker
   
 # TODO: apps
 # https://github.com/AppFlowy-IO/AppFlowy-Cloud/blob/main/docker-compose.yml
