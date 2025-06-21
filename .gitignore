@@ -11,3 +11,6 @@
 
 # logs directory
 /logs
+
+# unix socket directory
+/socket
