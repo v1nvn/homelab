@@ -1073,6 +1073,21 @@ services:
     environment:
       LISTEN: /beszel_socket/beszel.sock
       KEY: "${BESZEL_AGENT_KEY}"
+
+  homebridge:
+    image: homebridge/homebridge:latest
+    container_name: homebridge
+    restart: always
+    network_mode: host # This service uses host networking
+    volumes:
+      - ./data/homebridge:/homebridge
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.homebridge.entrypoints=websecure
+      - traefik.http.routers.homebridge.rule=Host(`homebridge.${DOMAIN_NAME}`)
+      - traefik.http.routers.homebridge.tls.certresolver=certo
+      - traefik.http.routers.homebridge.service=homebridge
+      - traefik.http.services.homebridge.loadBalancer.server.port=8581
   
 # TODO: apps
 # https://github.com/AppFlowy-IO/AppFlowy-Cloud/blob/main/docker-compose.yml
