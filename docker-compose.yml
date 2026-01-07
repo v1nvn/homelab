@@ -367,6 +367,7 @@ services:
       - TZ=${TIMEZONE}
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_HTTP_API_METRICS=true
+      - WATCHTOWER_INCLUDE_RESTARTING=true
       - WATCHTOWER_HTTP_API_TOKEN=${LOCAL_API_KEY}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -661,10 +662,12 @@ services:
       - traefik.http.services.echoer.loadBalancer.server.port=8080
 
   pdf:
-    image: stirlingtools/stirling-pdf:latest
+    image: bentopdf/bentopdf-simple:latest
     container_name: pdf
     restart: always
     environment:
+      - PUID=${UID}
+      - PGID=${GID}
       - TZ=${TIMEZONE}
     networks:
       - homelab_bridge
@@ -980,7 +983,7 @@ services:
       - TZ=${TIMEZONE}
       - ATUIN_HOST=0.0.0.0
       # - ATUIN_OPEN_REGISTRATION=true
-      - ATUIN_DB_URI=postgresql://${DB_USERNAME}:${DB_PASSWORD}@atuin-db:5432/atuin
+      - ATUIN_DB_URI=postgres://${DB_USERNAME}:${DB_PASSWORD}@atuin-db:5432/atuin
       - RUST_LOG=info,atuin_server=debug
     volumes:
       - ./config/atuin:/config
