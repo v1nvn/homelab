@@ -325,27 +325,31 @@ services:
       - traefik.http.routers.glances-api.service=glances
       - traefik.http.routers.glances-api.tls.certresolver=certo
 
-  watchtower:
-    image: containrrr/watchtower:latest
-    container_name: watchtower
+  wud:
+    image: getwud/wud:latest
+    container_name: wud
     restart: unless-stopped
     environment:
       - TZ=${TIMEZONE}
-      - WATCHTOWER_CLEANUP=true
-      - WATCHTOWER_HTTP_API_METRICS=true
-      - WATCHTOWER_INCLUDE_RESTARTING=true
-      - WATCHTOWER_HTTP_API_TOKEN=${LOCAL_API_KEY}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - homelab_bridge
     labels:
       - traefik.enable=true
-      - traefik.http.services.watchtower.loadBalancer.server.port=8080
-      - traefik.http.routers.watchtower.entrypoints=websecure
-      - traefik.http.routers.watchtower.rule=Host(`watchtower.${DOMAIN_NAME}`)
-      - traefik.http.routers.watchtower.tls.certresolver=certo
-      - traefik.http.routers.watchtower.service=watchtower
+      - traefik.http.services.wud.loadBalancer.server.port=3000
+      
+      - traefik.http.routers.wud.middlewares=authentik@docker
+      - traefik.http.routers.wud.entrypoints=websecure
+      - traefik.http.routers.wud.rule=Host(`wud.${DOMAIN_NAME}`)
+      - traefik.http.routers.wud.tls.certresolver=certo
+      - traefik.http.routers.wud.service=wud
+
+      - traefik.http.routers.wud-api.entrypoints=websecure
+      - traefik.http.routers.wud-api.priority=99
+      - traefik.http.routers.wud-api.rule=Host(`wud.${DOMAIN_NAME}`) && Header(`X-Api-Key`, `${LOCAL_API_KEY}`)
+      - traefik.http.routers.wud-api.service=wud
+      - traefik.http.routers.wud-api.tls.certresolver=certo
 
   code:
     image: lscr.io/linuxserver/code-server:latest
