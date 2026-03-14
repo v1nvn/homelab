@@ -123,7 +123,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.authentik.entrypoints=websecure
-      - traefik.http.routers.authentik.rule=Host(`authentik.${DOMAIN_NAME}`)
+      - traefik.http.routers.authentik.rule=Host(`auth.${DOMAIN_NAME}`)
       - traefik.http.routers.authentik.tls.certresolver=certo
       - traefik.http.routers.authentik.service=authentik
 
@@ -208,6 +208,7 @@ services:
     environment:
       - PUID=${UID}
       - PGID=${GID}
+      - HOMEPAGE_ALLOWED_HOSTS=${DOMAIN_NAME}
     volumes:
       - ./data/homepage/config:/app/config
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -242,29 +243,6 @@ services:
       - traefik.http.routers.stremio.tls.certresolver=certo
       - traefik.http.routers.stremio.service=stremio
       - traefik.http.services.stremio.loadBalancer.server.port=11470
-
-  emulator:
-    image: lscr.io/linuxserver/emulatorjs:latest
-    container_name: emulator
-    restart: unless-stopped
-    environment:
-      - PUID=${UID}
-      - PGID=${GID}
-      - TZ=${TIMEZONE}
-    volumes:
-      - ./data/emulator/config:/config
-      - ./data/emulator/data:/data
-    networks:
-      - homelab_bridge
-    ports:
-      - 3000:3000
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.emulator.entrypoints=websecure
-      - traefik.http.routers.emulator.rule=Host(`emulator.${DOMAIN_NAME}`)
-      - traefik.http.routers.emulator.tls.certresolver=certo
-      - traefik.http.routers.emulator.service=emulator
-      - traefik.http.services.emulator.loadBalancer.server.port=80
 
   octoprint:
     image: octoprint/octoprint:latest
