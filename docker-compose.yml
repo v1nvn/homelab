@@ -1071,8 +1071,8 @@ services:
       - AVAHI_DISABLE=true
       - WSDD2_DISABLE=true
       - ACCOUNT_${USERNAME}=${PASSWORD}
-      - SAMBA_VOLUME_CONFIG_movies=path = [movies]; path = /movieNAS; browseable = yes; read only = no; valid users = ${USERNAME}
-      - SAMBA_VOLUME_CONFIG_tv=path = [tv]; path = /tvNAS; browseable = yes; read only = no; valid users = ${USERNAME}
+      - SAMBA_VOLUME_CONFIG_movies= [movies]; path = /movieNAS; browseable = yes; read only = no; valid users = ${USERNAME}
+      - SAMBA_VOLUME_CONFIG_tv= [tv]; path = /tvNAS; browseable = yes; read only = no; valid users = ${USERNAME}
     volumes:
       - ${MOVIE_NAS}:/movieNAS
       - ${TV_NAS}:/tvNAS
