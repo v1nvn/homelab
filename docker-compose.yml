@@ -1061,11 +1061,31 @@ services:
       - traefik.http.routers.homebridge.service=homebridge
       - traefik.http.services.homebridge.loadBalancer.server.port=8581
   
+  samba:
+    image: ghcr.io/servercontainers/samba:latest
+    container_name: samba
+    restart: unless-stopped
+    environment:
+      - TZ=${TIMEZONE}
+      - SAMBA_CONF_WORKGROUP=WORKGROUP
+      - AVAHI_DISABLE=true
+      - WSDD2_DISABLE=true
+      - ACCOUNT_${USERNAME}=${PASSWORD}
+      - SAMBA_VOLUME_CONFIG_movies=path = /movieNAS; browseable = yes; read only = no; valid users = ${USERNAME}
+      - SAMBA_VOLUME_CONFIG_tv=path = /tvNAS; browseable = yes; read only = no; valid users = ${USERNAME}
+    volumes:
+      - /movieNAS:${MOVIE_NAS}
+      - /tvNAS:${TV_NAS}
+    networks:
+      - homelab_bridge
+    ports:
+      - 139:139
+      - 445:445
+
 # TODO: apps
 # https://github.com/AppFlowy-IO/AppFlowy-Cloud/blob/main/docker-compose.yml
 # - Servarrrrrrr
 # - Hardlinks - https://trash-guides.info/Hardlinks/Hardlinks-and-Instant-Moves/
-# - samba - https://github.com/ServerContainers/samba/blob/master/docker-compose.yml
 # - immich
 # - paperless-ngx
 # - rustdesk
